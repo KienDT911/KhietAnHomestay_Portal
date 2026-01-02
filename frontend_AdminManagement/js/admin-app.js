@@ -181,6 +181,7 @@ function updateDashboard() {
         const card = document.createElement('div');
         card.className = `quick-room-card ${room.status}`;
         card.innerHTML = `
+            <span class="quick-room-number">#${room.id}</span>
             <span class="quick-room-status ${room.status}">${room.status.toUpperCase()}</span>
             <h4>${room.name}</h4>
             <p>$${room.price}/night</p>

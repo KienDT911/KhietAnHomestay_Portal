@@ -256,10 +256,16 @@ async function updateDashboard() {
     const gridContainer = document.getElementById('quick-rooms-grid');
     gridContainer.innerHTML = '';
     
-    roomManager.getAllRooms().forEach(room => {
+    // Sort rooms by room_id ascending (level order)
+    const sortedRooms = [...roomManager.getAllRooms()].sort((a, b) => {
+        return a.room_id.localeCompare(b.room_id);
+    });
+    
+    sortedRooms.forEach(room => {
         const card = document.createElement('div');
         card.className = `quick-room-card ${room.status}`;
         card.innerHTML = `
+            <span class="quick-room-number">#${room.room_id}</span>
             <span class="quick-room-status ${room.status}">${room.status.toUpperCase()}</span>
             <h4>${room.name}</h4>
             <p>$${room.price}/night</p>
@@ -276,7 +282,12 @@ function displayRooms() {
     const tableBody = document.getElementById('rooms-list');
     tableBody.innerHTML = '';
     
-    roomManager.getAllRooms().forEach(room => {
+    // Sort rooms by room_id ascending (level order)
+    const sortedRooms = [...roomManager.getAllRooms()].sort((a, b) => {
+        return a.room_id.localeCompare(b.room_id);
+    });
+    
+    sortedRooms.forEach(room => {
         const row = document.createElement('tr');
         row.innerHTML = `
             <td><strong>${room.name}</strong></td>
@@ -302,7 +313,9 @@ function filterRooms() {
     const tableBody = document.getElementById('rooms-list');
     tableBody.innerHTML = '';
     
-    roomManager.getAllRooms()
+    // Sort and filter rooms by room_id ascending (level order)
+    [...roomManager.getAllRooms()]
+        .sort((a, b) => a.room_id.localeCompare(b.room_id))
         .filter(room => {
             const matchesSearch = room.name.toLowerCase().includes(searchTerm);
             const matchesStatus = !statusFilter || room.status === statusFilter;

@@ -465,6 +465,18 @@ html, body {
     min-height: 130px;
 }
 
+.quick-room-number {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    background: var(--sage-green);
+    color: white;
+}
+
 .quick-room-card.booked {
     opacity: 0.6;
     background: #f5f5f5;
