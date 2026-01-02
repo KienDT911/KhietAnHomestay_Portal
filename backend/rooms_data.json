@@ -1,0 +1,76 @@
+[
+    {
+        "_id": "0101",
+        "name": "Deluxe Room",
+        "persons": 2,
+        "description": "Spacious room with a beautiful garden view, perfect for couples or solo travelers seeking peace. Features a comfortable queen-size bed, private bathroom, and a cozy reading nook.",
+        "price": 65,
+        "amenities": [
+            "Queen Bed",
+            "Private Bath",
+            "Garden View",
+            "WiFi"
+        ],
+        "bookingStatus": "available"
+    },
+    {
+        "_id": "0102",
+        "name": "Family Suite",
+        "persons": 6,
+        "description": "Perfect for families, this suite offers ample space with two bedrooms and a shared living area. Enjoy quality time together while having your own private spaces to retreat to.",
+        "price": 75,
+        "amenities": [
+            "3 Queen Beds",
+            "AC",
+            "Private Bathroom",
+            "TV"
+        ],
+        "bookingStatus": "available"
+    },
+    {
+        "_id": "0201",
+        "name": "Twin Room",
+        "persons": 4,
+        "description": "Two comfortable twin beds make this room perfect for friends traveling together or family members. Bright and airy with modern amenities for your convenience.",
+        "price": 65,
+        "amenities": [
+            "2 Queen Beds",
+            "WiFi",
+            "AC",
+            "Private Bathroom",
+            "Balcony"
+        ],
+        "bookingStatus": "available"
+    },
+    {
+        "_id": "0301",
+        "name": "Cozy Single",
+        "persons": 2,
+        "description": "Intimate and affordable, our single room is ideal for solo adventurers. Though compact, it's thoughtfully designed with everything you need for a comfortable stay.",
+        "price": 45,
+        "amenities": [
+            "WiFi",
+            "AC",
+            "Shared Bathroom",
+            "King Bed",
+            "Work Desk",
+            "View of the city"
+        ],
+        "bookingStatus": "available"
+    },
+    {
+        "_id": "0501",
+        "name": "Big Family Suite",
+        "persons": 8,
+        "description": "",
+        "price": 90,
+        "amenities": [
+            "WiFi",
+            "AC",
+            "2 Bathrooms",
+            "3 King Beds",
+            "View of the city"
+        ],
+        "bookingStatus": "available"
+    }
+]

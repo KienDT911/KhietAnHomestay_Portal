@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Khiết An Homestay - Admin Management</title>
+    <link rel="stylesheet" href="css/admin-styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Birthstone&family=Playfair+Display:wght@400;600;700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Login Page -->
+    <div id="login-page" class="login-container">
+        <div class="login-box">
+            <div class="login-logo">
+                <h1 class="logo-main">Khiết An</h1>
+                <p class="logo-sub">HOMESTAY</p>
+            </div>
+            
+            <h2 class="login-title">Admin Management</h2>
+            <p class="login-subtitle">Enter your account</p>
+            
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <input type="text" id="username" placeholder="Username" required>
+                </div>
+                
+                <div class="form-group">
+                    <input type="password" id="password" placeholder="Password" required>
+                </div>
+                
+                <button type="submit" class="btn-login">Login</button>
+            </form>
+            
+            <p class="login-error" id="login-error"></p>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard (Hidden until logged in) -->
+    <div id="admin-dashboard" class="admin-dashboard" style="display:none;">
+        <!-- Admin Header -->
+        <header class="admin-header">
+            <div class="header-container">
+                <div class="admin-logo">
+                    <h1 class="logo-main">Khiết An</h1>
+                    <p class="logo-sub">HOMESTAY</p>
+                </div>
+                <h1 class="admin-title">Admin Panel</h1>
+                <div class="header-actions">
+                    <span class="admin-user" id="logged-user">Administrator</span>
+                    <button class="btn-logout" onclick="logout()">Logout</button>
+                </div>
+            </div>
+        </header>
+
+        <div class="admin-container">
+            <!-- Sidebar Navigation -->
+            <nav class="admin-sidebar">
+                <ul class="sidebar-menu">
+                    <li><a href="#" class="menu-item active" onclick="switchTab('dashboard')">Dashboard</a></li>
+                    <li><a href="#" class="menu-item" onclick="switchTab('rooms')">Manage Rooms</a></li>
+                    <li><a href="#" class="menu-item" onclick="switchTab('add-room')">Add New Room</a></li>
+                </ul>
+            </nav>
+
+            <!-- Main Content -->
+            <main class="admin-content">
+                <!-- Dashboard Tab -->
+                <section id="dashboard" class="tab-content active">
+                    <div class="dashboard-header">
+                        <h2>Dashboard</h2>
+                    </div>
+                    <div class="dashboard-stats">
+                        <div class="stat-card">
+                            <h3>Total Rooms</h3>
+                            <p class="stat-number" id="total-rooms">0</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Available</h3>
+                            <p class="stat-number available" id="available-count">0</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Booked</h3>
+                            <p class="stat-number booked" id="booked-count">0</p>
+                        </div>
+                    </div>
+
+                    <div class="quick-preview">
+                        <h3>Room Status Overview</h3>
+                        <div class="rooms-quick-grid" id="quick-rooms-grid">
+                            <!-- Populated by JavaScript -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Manage Rooms Tab -->
+                <section id="rooms" class="tab-content">
+                    <div class="rooms-header">
+                        <h2>Manage Rooms</h2>
+                        <button class="btn-primary" onclick="switchTab('add-room')">+ Add New Room</button>
+                    </div>
+
+                    <div class="search-filter">
+                        <input type="text" id="search-rooms" placeholder="Search rooms by name..." onkeyup="filterRooms()">
+                        <select id="filter-status" onchange="filterRooms()">
+                            <option value="">All Status</option>
+                            <option value="available">Available</option>
+                            <option value="booked">Booked</option>
+                        </select>
+                    </div>
+
+                    <div class="rooms-table-container">
+                        <table class="rooms-table">
+                            <thead>
+                                <tr>
+                                    <th>Room Name</th>
+                                    <th>Price/Night</th>
+                                    <th>Capacity</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rooms-list">
+                                <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Add/Edit Room Tab -->
+                <section id="add-room" class="tab-content">
+                    <div class="form-header">
+                        <h2 id="form-title">Add New Room</h2>
+                    </div>
+
+                    <form class="room-form" id="room-form" onsubmit="saveRoom(event)">
+                        <input type="hidden" id="room-id">
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="room-custom-id">Room ID * (4 digits)</label>
+                                <div class="input-with-button">
+                                    <input type="text" id="room-custom-id" required placeholder="e.g., 0101, 0201" 
+                                        pattern="[0-9]{4}" maxlength="4" title="Please enter exactly 4 digits"
+                                        oninput="validateRoomId(this.value)">
+                                    <button type="button" class="btn-secondary btn-small" onclick="showTakenRoomIds()">Show Taken IDs</button>
+                                </div>
+                                <small id="room-id-status" class="validation-message"></small>
+                            </div>
+                            <div class="form-group">
+                                <label for="room-name">Room Name *</label>
+                                <input type="text" id="room-name" required placeholder="e.g., Deluxe Garden View">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="room-price">Price per Night (USD) *</label>
+                                <input type="number" id="room-price" required placeholder="35" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label for="room-capacity">Guest Capacity *</label>
+                                <input type="number" id="room-capacity" required placeholder="2" min="1">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="room-description">Description *</label>
+                            <textarea id="room-description" required placeholder="Describe the room features and amenities..." rows="5"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="room-amenities">Amenities (comma-separated) *</label>
+                            <input type="text" id="room-amenities" required placeholder="Queen Bed, Private Bath, Garden View, Free WiFi">
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="room-status">Room Status *</label>
+                                <select id="room-status" required onchange="updateAvailabilityFields()">
+                                    <option value="available">Available</option>
+                                    <option value="booked">Booked</option>
+                                    <option value="maintenance">Maintenance</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="booked-until-group" style="display:none;">
+                                <label for="booked-until">Booked Until *</label>
+                                <input type="date" id="booked-until">
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary">Save Room</button>
+                            <button type="button" class="btn-secondary" onclick="resetForm()">Cancel</button>
+                        </div>
+                    </form>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Edit Room Modal -->
+    <div id="edit-modal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal()">&times;</span>
+            <form class="room-form" id="edit-form" onsubmit="saveRoom(event)">
+                <h2>Edit Room</h2>
+                <input type="hidden" id="edit-room-id">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit-room-display-id">Room ID</label>
+                        <input type="text" id="edit-room-display-id" readonly 
+                            style="background-color: #f0f0f0; cursor: not-allowed;">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-room-name">Room Name *</label>
+                        <input type="text" id="edit-room-name" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit-room-price">Price per Night (USD) *</label>
+                        <input type="number" id="edit-room-price" required step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-room-capacity">Guest Capacity *</label>
+                        <input type="number" id="edit-room-capacity" required min="1">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-room-description">Description *</label>
+                    <textarea id="edit-room-description" required rows="5"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-room-amenities">Amenities (comma-separated) *</label>
+                    <input type="text" id="edit-room-amenities" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit-room-status">Room Status *</label>
+                        <select id="edit-room-status" required onchange="updateEditAvailabilityFields()">
+                            <option value="available">Available</option>
+                            <option value="booked">Booked</option>
+                            <option value="maintenance">Maintenance</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="edit-booked-until-group" style="display:none;">
+                        <label for="edit-booked-until">Booked Until *</label>
+                        <input type="date" id="edit-booked-until">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Update Room</button>
+                    <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Quick Edit Modal -->
+    <div id="quick-edit-modal" class="modal" style="display:none;">
+        <div class="modal-content quick-edit-content">
+            <!-- Content will be dynamically inserted -->
+        </div>
+    </div>
+
+    <script src="js/admin-app-mongodb.js"></script>
+</body>
+</html>
