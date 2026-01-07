@@ -755,10 +755,7 @@ async function saveRoom(event) {
         capacity: parseInt(document.getElementById('room-capacity').value),
         description: document.getElementById('room-description').value,
         amenities: document.getElementById('room-amenities').value.split(',').map(a => a.trim()),
-        status: document.getElementById('room-status').value,
-        booked_until: document.getElementById('room-status').value === 'booked' 
-            ? document.getElementById('booked-until').value 
-            : null
+        status: document.getElementById('room-status').value
     };
     
     // Add custom ID for new rooms
@@ -797,11 +794,6 @@ function editRoom(id) {
     document.getElementById('edit-room-amenities').value = room.amenities.join(', ');
     document.getElementById('edit-room-status').value = room.status;
     
-    if (room.status === 'booked') {
-        document.getElementById('edit-booked-until-group').style.display = 'block';
-        document.getElementById('edit-booked-until').value = room.booked_until || '';
-    }
-    
     document.getElementById('edit-form').onsubmit = async function(e) {
         e.preventDefault();
         const updatedData = {
@@ -810,10 +802,7 @@ function editRoom(id) {
             capacity: parseInt(document.getElementById('edit-room-capacity').value),
             description: document.getElementById('edit-room-description').value,
             amenities: document.getElementById('edit-room-amenities').value.split(',').map(a => a.trim()),
-            status: document.getElementById('edit-room-status').value,
-            booked_until: document.getElementById('edit-room-status').value === 'booked' 
-                ? document.getElementById('edit-booked-until').value 
-                : null
+            status: document.getElementById('edit-room-status').value
         };
         
         try {
@@ -909,10 +898,6 @@ function openQuickEditModal(id) {
                     <option value="maintenance" ${room.status === 'maintenance' ? 'selected' : ''}>Maintenance</option>
                 </select>
             </div>
-            <div class="form-group" id="quick-booked-until-group" style="display:${room.status === 'booked' ? 'block' : 'none'}">
-                <label for="quick-booked-until">Booked Until *</label>
-                <input type="date" id="quick-booked-until" value="${room.booked_until || ''}">
-            </div>
             <div class="form-group">
                 <label for="quick-price">Price per Night (USD)</label>
                 <input type="number" id="quick-price" value="${room.price}" step="0.01">
@@ -933,12 +918,10 @@ async function saveQuickEdit(event, id) {
     
     const status = document.getElementById('quick-status').value;
     const price = parseFloat(document.getElementById('quick-price').value);
-    const booked_until = status === 'booked' ? document.getElementById('quick-booked-until').value : null;
     
     const updatedData = {
         status: status,
-        price: price,
-        booked_until: booked_until
+        price: price
     };
     
     try {
@@ -957,18 +940,9 @@ function closeQuickEditModal() {
     document.getElementById('quick-edit-modal').style.display = 'none';
 }
 
-// Update quick edit availability fields
+// Update quick edit availability fields (no longer needed since booked_until is removed)
 function updateQuickAvailabilityFields() {
-    const status = document.getElementById('quick-status').value;
-    const bookedUntilGroup = document.getElementById('quick-booked-until-group');
-    
-    if (status === 'booked') {
-        bookedUntilGroup.style.display = 'block';
-        document.getElementById('quick-booked-until').required = true;
-    } else {
-        bookedUntilGroup.style.display = 'none';
-        document.getElementById('quick-booked-until').required = false;
-    }
+    // No action needed - booked_until field has been removed
 }
 
 // Close modal when clicking outside

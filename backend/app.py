@@ -101,7 +101,6 @@ def convert_room_for_api(room):
         'amenities': room.get('amenities', []),
         'status': room.get('bookingStatus', 'available'),
         'bookingStatus': room.get('bookingStatus', 'available'),
-        'booked_until': room.get('booked_until'),
         'bookedIntervals': room.get('bookedIntervals', []),  # Include booking intervals for calendar
         'created_at': str(room.get('created_at', '')) if room.get('created_at') else None,
         'updated_at': str(room.get('updated_at', '')) if room.get('updated_at') else None
@@ -236,7 +235,6 @@ def add_room():
             'description': data.get('description'),
             'amenities': data.get('amenities', []),
             'bookingStatus': data.get('status', 'available'),
-            'booked_until': data.get('booked_until'),
             'created_at': datetime.utcnow(),
             'updated_at': datetime.utcnow()
         }
@@ -308,8 +306,6 @@ def update_room(room_id):
                 room['persons'] = int(data['capacity'])
             if 'status' in data:
                 room['bookingStatus'] = data['status']
-            if 'booked_until' in data:
-                room['booked_until'] = data['booked_until']
             room['updated_at'] = datetime.utcnow().isoformat()
             
             api_room = convert_room_for_api(room.copy())
@@ -351,8 +347,6 @@ def update_room(room_id):
                 updated_room['bookingStatus'] = data['status']
             if 'bookingStatus' in data:
                 updated_room['bookingStatus'] = data['bookingStatus']
-            if 'booked_until' in data:
-                updated_room['booked_until'] = data['booked_until']
             
             updated_room['updated_at'] = datetime.utcnow()
             
