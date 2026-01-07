@@ -81,6 +81,7 @@ def convert_room_for_api(room):
         'status': room.get('bookingStatus', 'available'),
         'bookingStatus': room.get('bookingStatus', 'available'),
         'booked_until': room.get('booked_until'),
+        'bookedIntervals': room.get('bookedIntervals', []),  # Include booking intervals for calendar
         'created_at': str(room.get('created_at', '')) if room.get('created_at') else None,
         'updated_at': str(room.get('updated_at', '')) if room.get('updated_at') else None
     }
@@ -401,11 +402,21 @@ def delete_room(room_id):
 def health_check():
     """Health check endpoint"""
     try:
-        client.admin.command('ping')
-        return jsonify({
-            'status': 'healthy',
-            'database': 'connected'
-        }), 200
+        if client is not None:
+            client.admin.command('ping')
+            return jsonify({
+                'status': 'healthy',
+                'database': 'connected',
+                'source': 'mongodb'
+            }), 200
+        else:
+            # Running in fallback mode with JSON data
+            return jsonify({
+                'status': 'healthy',
+                'database': 'disconnected',
+                'source': 'fallback_json',
+                'rooms_loaded': len(fallback_rooms)
+            }), 200
     except Exception as e:
         return jsonify({
             'status': 'unhealthy',

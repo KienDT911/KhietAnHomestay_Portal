@@ -37,6 +37,7 @@ backend/*.pyc
 backend/.pytest_cache/
 backend/.env
 backend/room_data.json
+backend/rooms_data.json
 backend/UpdateDB.py
 
 # Database
@@ -45,3 +46,4 @@ backend/UpdateDB.py
 
 # Uploads
 uploads/
+backend/rooms_data.json

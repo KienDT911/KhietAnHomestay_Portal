@@ -55,6 +55,9 @@ function showDashboard() {
     const username = sessionStorage.getItem('adminUsername') || 'Administrator';
     document.getElementById('logged-user').textContent = username;
     
+    // Restore sidebar state
+    restoreSidebarState();
+    
     // Initialize dashboard
     roomManager.loadRooms();
 }
@@ -209,7 +212,39 @@ class RoomManager {
 // Initialize Room Manager
 const roomManager = new RoomManager();
 
+// ===== Calendar State =====
+let currentCalendarYear = new Date().getFullYear();
+let currentCalendarMonth = new Date().getMonth(); // 0-indexed
+
 // ===== UI Functions =====
+
+// Toggle sidebar collapsed state
+function toggleSidebar() {
+    const sidebar = document.getElementById('admin-sidebar');
+    sidebar.classList.toggle('collapsed');
+    
+    // Save state to sessionStorage
+    sessionStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+}
+
+// Collapse sidebar (called when tab is selected)
+function collapseSidebar() {
+    const sidebar = document.getElementById('admin-sidebar');
+    if (sidebar && !sidebar.classList.contains('collapsed')) {
+        sidebar.classList.add('collapsed');
+        sessionStorage.setItem('sidebarCollapsed', 'true');
+    }
+}
+
+// Restore sidebar state from session storage
+function restoreSidebarState() {
+    const sidebar = document.getElementById('admin-sidebar');
+    const isCollapsed = sessionStorage.getItem('sidebarCollapsed');
+    
+    if (isCollapsed === 'true' && sidebar) {
+        sidebar.classList.add('collapsed');
+    }
+}
 
 // Switch tabs
 function switchTab(tabName) {
@@ -231,8 +266,15 @@ function switchTab(tabName) {
     
     // Mark menu item as active
     if (event && event.target) {
-        event.target.classList.add('active');
+        // Find the closest .menu-item element (in case icon was clicked)
+        const menuItem = event.target.closest('.menu-item');
+        if (menuItem) {
+            menuItem.classList.add('active');
+        }
     }
+    
+    // Collapse sidebar after selecting a tab
+    collapseSidebar();
     
     // Update content based on tab
     if (tabName === 'dashboard') {
@@ -252,29 +294,371 @@ async function updateDashboard() {
     document.getElementById('available-count').textContent = stats.available || 0;
     document.getElementById('booked-count').textContent = stats.booked || 0;
     
-    // Display quick preview
-    const gridContainer = document.getElementById('quick-rooms-grid');
-    gridContainer.innerHTML = '';
+    // Update month display
+    updateMonthDisplay();
     
-    // Sort rooms by room_id ascending (level order)
-    const sortedRooms = [...roomManager.getAllRooms()].sort((a, b) => {
-        return a.room_id.localeCompare(b.room_id);
+    // Render room calendars with filters
+    applyDashboardFilters();
+}
+
+// ===== Dashboard Filter Functions =====
+
+// Apply filters and render calendars
+function applyDashboardFilters() {
+    const statusFilter = document.getElementById('dashboard-filter-status')?.value || '';
+    const capacityFilter = document.getElementById('dashboard-filter-capacity')?.value || '';
+    const priceFilter = document.getElementById('dashboard-filter-price')?.value || '';
+    const checkinDate = document.getElementById('dashboard-filter-checkin')?.value || '';
+    const checkoutDate = document.getElementById('dashboard-filter-checkout')?.value || '';
+    const sortBy = document.getElementById('dashboard-sort')?.value || 'room_id';
+    
+    let filteredRooms = [...roomManager.getAllRooms()];
+    
+    // Filter by status
+    if (statusFilter) {
+        filteredRooms = filteredRooms.filter(room => room.status === statusFilter);
+    }
+    
+    // Filter by capacity
+    if (capacityFilter) {
+        filteredRooms = filteredRooms.filter(room => {
+            const capacity = room.capacity || room.persons || 0;
+            switch (capacityFilter) {
+                case '1-2': return capacity >= 1 && capacity <= 2;
+                case '3-4': return capacity >= 3 && capacity <= 4;
+                case '5-6': return capacity >= 5 && capacity <= 6;
+                case '7+': return capacity >= 7;
+                default: return true;
+            }
+        });
+    }
+    
+    // Filter by price
+    if (priceFilter) {
+        filteredRooms = filteredRooms.filter(room => {
+            const price = room.price || 0;
+            switch (priceFilter) {
+                case '0-50': return price < 50;
+                case '50-75': return price >= 50 && price <= 75;
+                case '75-100': return price > 75 && price <= 100;
+                case '100+': return price > 100;
+                default: return true;
+            }
+        });
+    }
+    
+    // Filter by availability for date range (check-in to check-out)
+    if (checkinDate && checkoutDate) {
+        filteredRooms = filteredRooms.filter(room => {
+            return isRoomAvailableForDateRange(room, checkinDate, checkoutDate);
+        });
+    } else if (checkinDate) {
+        // If only check-in date is provided, check that single date
+        filteredRooms = filteredRooms.filter(room => {
+            const bookedDates = getBookedDatesForRoom(room);
+            return !bookedDates.has(checkinDate);
+        });
+    }
+    
+    // Sort rooms
+    filteredRooms = sortRooms(filteredRooms, sortBy);
+    
+    // Update results count
+    updateFilterResultsCount(filteredRooms.length, roomManager.getAllRooms().length);
+    
+    // Render filtered calendars
+    renderFilteredCalendars(filteredRooms);
+}
+
+// Check if room is available for entire date range
+function isRoomAvailableForDateRange(room, checkinDate, checkoutDate) {
+    const bookedDates = getBookedDatesForRoom(room);
+    const startDate = new Date(checkinDate);
+    const endDate = new Date(checkoutDate);
+    
+    // Validate dates
+    if (startDate >= endDate) {
+        return true; // Invalid range, don't filter
+    }
+    
+    // Check each date in the range (excluding checkout date as guest leaves)
+    let currentDate = new Date(startDate);
+    while (currentDate < endDate) {
+        const dateStr = formatDateString(currentDate);
+        if (bookedDates.has(dateStr)) {
+            return false; // Room is booked on this date
+        }
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    return true; // Room is available for entire range
+}
+
+// Sort rooms based on criteria
+function sortRooms(rooms, sortBy) {
+    return rooms.sort((a, b) => {
+        switch (sortBy) {
+            case 'room_id':
+                return (a.room_id || '').localeCompare(b.room_id || '');
+            case 'name':
+                return (a.name || '').localeCompare(b.name || '');
+            case 'price_asc':
+                return (a.price || 0) - (b.price || 0);
+            case 'price_desc':
+                return (b.price || 0) - (a.price || 0);
+            case 'capacity_asc':
+                return (a.capacity || a.persons || 0) - (b.capacity || b.persons || 0);
+            case 'capacity_desc':
+                return (b.capacity || b.persons || 0) - (a.capacity || a.persons || 0);
+            default:
+                return 0;
+        }
     });
+}
+
+// Update filter results count
+function updateFilterResultsCount(filteredCount, totalCount) {
+    const countEl = document.getElementById('filter-results-count');
+    if (countEl) {
+        if (filteredCount === totalCount) {
+            countEl.textContent = `All ${totalCount} rooms`;
+        } else {
+            countEl.textContent = `${filteredCount}/${totalCount} rooms`;
+        }
+    }
+}
+
+// Reset all dashboard filters
+function resetDashboardFilters() {
+    const statusSelect = document.getElementById('dashboard-filter-status');
+    const capacitySelect = document.getElementById('dashboard-filter-capacity');
+    const priceSelect = document.getElementById('dashboard-filter-price');
+    const checkinInput = document.getElementById('dashboard-filter-checkin');
+    const checkoutInput = document.getElementById('dashboard-filter-checkout');
+    const sortSelect = document.getElementById('dashboard-sort');
     
-    sortedRooms.forEach(room => {
-        const card = document.createElement('div');
-        card.className = `quick-room-card ${room.status}`;
-        card.innerHTML = `
-            <span class="quick-room-number">#${room.room_id}</span>
-            <span class="quick-room-status ${room.status}">${room.status.toUpperCase()}</span>
-            <h4>${room.name}</h4>
-            <p>$${room.price}/night</p>
-            <p>${room.capacity} guests</p>
+    if (statusSelect) statusSelect.value = '';
+    if (capacitySelect) capacitySelect.value = '';
+    if (priceSelect) priceSelect.value = '';
+    if (checkinInput) checkinInput.value = '';
+    if (checkoutInput) checkoutInput.value = '';
+    if (sortSelect) sortSelect.value = 'room_id';
+    
+    applyDashboardFilters();
+}
+
+// Render filtered room calendars
+function renderFilteredCalendars(rooms) {
+    const container = document.getElementById('rooms-calendar-container');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (rooms.length === 0) {
+        container.innerHTML = `
+            <div class="no-results">
+                <svg viewBox="0 0 24 24" width="48" height="48">
+                    <path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                </svg>
+                <p>No rooms match your filters</p>
+                <button class="btn-secondary" onclick="resetDashboardFilters()">Reset Filters</button>
+            </div>
         `;
-        card.onclick = () => openQuickEditModal(room.room_id);
-        card.style.cursor = 'pointer';
-        gridContainer.appendChild(card);
+        return;
+    }
+    
+    rooms.forEach(room => {
+        const rowEl = createRoomCalendarRow(room);
+        container.appendChild(rowEl);
     });
+    
+    // Add legend at the bottom
+    addCalendarLegend(container);
+}
+
+// Add calendar legend
+function addCalendarLegend(container) {
+    const legend = document.createElement('div');
+    legend.className = 'calendar-legend';
+    legend.innerHTML = `
+        <div class="legend-item">
+            <div class="legend-color today"></div>
+            <span>Today</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color available"></div>
+            <span>Available</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color booked"></div>
+            <span>Booked</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color past"></div>
+            <span>Past Date</span>
+        </div>
+    `;
+    container.appendChild(legend);
+}
+
+// Update month display text
+function updateMonthDisplay() {
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+    const displayEl = document.getElementById('current-month-display');
+    if (displayEl) {
+        displayEl.textContent = `${monthNames[currentCalendarMonth]} ${currentCalendarYear}`;
+    }
+}
+
+// Change month (direction: -1 for prev, 1 for next)
+function changeMonth(direction) {
+    currentCalendarMonth += direction;
+    
+    if (currentCalendarMonth > 11) {
+        currentCalendarMonth = 0;
+        currentCalendarYear++;
+    } else if (currentCalendarMonth < 0) {
+        currentCalendarMonth = 11;
+        currentCalendarYear--;
+    }
+    
+    updateMonthDisplay();
+    applyDashboardFilters();
+}
+
+// Render all room calendars (legacy - now uses applyDashboardFilters)
+function renderRoomCalendars() {
+    applyDashboardFilters();
+}
+
+// Create a room calendar row
+function createRoomCalendarRow(room) {
+    const row = document.createElement('div');
+    row.className = 'room-calendar-row';
+    
+    // Room info panel
+    const infoPanel = document.createElement('div');
+    infoPanel.className = 'room-info-panel';
+    infoPanel.innerHTML = `
+        <span class="room-number">#${room.room_id || room.id}</span>
+        <h4>${room.name}</h4>
+        <div class="room-details">
+            <p>$${room.price}/night</p>
+            <p>${room.capacity || room.persons} guests</p>
+        </div>
+        <span class="room-status-badge ${room.status}">${room.status.toUpperCase()}</span>
+    `;
+    infoPanel.style.cursor = 'pointer';
+    infoPanel.onclick = () => openQuickEditModal(room.room_id || room.id);
+    
+    // Calendar panel
+    const calendarPanel = document.createElement('div');
+    calendarPanel.className = 'calendar-panel';
+    
+    const calendarGrid = createCalendarGrid(room);
+    calendarPanel.appendChild(calendarGrid);
+    
+    row.appendChild(infoPanel);
+    row.appendChild(calendarPanel);
+    
+    return row;
+}
+
+// Create calendar grid for a room
+function createCalendarGrid(room) {
+    const grid = document.createElement('div');
+    grid.className = 'calendar-grid';
+    
+    // Day headers
+    const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    dayHeaders.forEach(day => {
+        const header = document.createElement('div');
+        header.className = 'calendar-header';
+        header.textContent = day;
+        grid.appendChild(header);
+    });
+    
+    // Get booked dates for this room
+    const bookedDates = getBookedDatesForRoom(room);
+    
+    // Get current date info
+    const today = new Date();
+    const todayStr = formatDateString(today);
+    
+    // Get first day of month and number of days
+    const firstDay = new Date(currentCalendarYear, currentCalendarMonth, 1);
+    const lastDay = new Date(currentCalendarYear, currentCalendarMonth + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startDayOfWeek = firstDay.getDay(); // 0 = Sunday
+    
+    // Add empty cells for days before the first of the month
+    for (let i = 0; i < startDayOfWeek; i++) {
+        const emptyCell = document.createElement('div');
+        emptyCell.className = 'calendar-day empty';
+        grid.appendChild(emptyCell);
+    }
+    
+    // Add day cells
+    for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(currentCalendarYear, currentCalendarMonth, day);
+        const dateStr = formatDateString(date);
+        
+        const dayCell = document.createElement('div');
+        dayCell.className = 'calendar-day';
+        dayCell.textContent = day;
+        
+        // Check if today
+        if (dateStr === todayStr) {
+            dayCell.classList.add('today');
+        }
+        
+        // Check if past (before today)
+        if (date < new Date(today.getFullYear(), today.getMonth(), today.getDate())) {
+            dayCell.classList.add('past');
+        }
+        
+        // Check if booked
+        if (bookedDates.has(dateStr)) {
+            dayCell.classList.add('booked');
+        } else if (!dayCell.classList.contains('past')) {
+            dayCell.classList.add('available');
+        }
+        
+        grid.appendChild(dayCell);
+    }
+    
+    return grid;
+}
+
+// Get booked dates for a room from bookedIntervals
+function getBookedDatesForRoom(room) {
+    const bookedDates = new Set();
+    
+    // Check if room has bookedIntervals array
+    const intervals = room.bookedIntervals || [];
+    
+    intervals.forEach(interval => {
+        const checkIn = new Date(interval.checkIn);
+        const checkOut = new Date(interval.checkOut);
+        
+        // Add all dates from check-in to check-out (exclusive of check-out)
+        let current = new Date(checkIn);
+        while (current < checkOut) {
+            bookedDates.add(formatDateString(current));
+            current.setDate(current.getDate() + 1);
+        }
+    });
+    
+    return bookedDates;
+}
+
+// Format date as YYYY-MM-DD string
+function formatDateString(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
 // Display rooms in table
