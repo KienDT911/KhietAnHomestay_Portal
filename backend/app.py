@@ -24,6 +24,8 @@ fallback_rooms = []
 
 # MongoDB Connection - Try Primary Source First
 print("🔄 Attempting MongoDB connection...")
+json_file_path = os.path.join(os.path.dirname(__file__), 'rooms_data.json')
+
 try:
     uri = os.getenv('MONGODB_URI')
     client = MongoClient(
@@ -38,6 +40,26 @@ try:
     db = client[os.getenv('MONGODB_DB')]
     rooms_collection = db[os.getenv('MONGODB_COLLECTION')]
     print("✓ MongoDB connection successful - using live database")
+    
+    # Sync MongoDB data to local JSON file for backup/fallback
+    try:
+        rooms_from_db = list(rooms_collection.find())
+        # Convert ObjectId to string for JSON serialization
+        for room in rooms_from_db:
+            if isinstance(room.get('_id'), ObjectId):
+                room['_id'] = str(room['_id'])
+            # Convert datetime objects to ISO format strings
+            if isinstance(room.get('created_at'), datetime):
+                room['created_at'] = room['created_at'].isoformat()
+            if isinstance(room.get('updated_at'), datetime):
+                room['updated_at'] = room['updated_at'].isoformat()
+        
+        with open(json_file_path, 'w', encoding='utf-8') as file:
+            json.dump(rooms_from_db, file, indent=4, ensure_ascii=False)
+        print(f"✓ Synced {len(rooms_from_db)} rooms to rooms_data.json")
+    except Exception as sync_error:
+        print(f"⚠️  Could not sync to JSON: {sync_error}")
+        
 except Exception as e:
     print(f"❌ MongoDB connection failed: {e}")
     print("⚠️  MongoDB unavailable. Loading fallback data from JSON...")
@@ -46,7 +68,6 @@ except Exception as e:
     rooms_collection = None
     
     # Load fallback data from JSON as backup
-    json_file_path = os.path.join(os.path.dirname(__file__), 'rooms_data.json')
     try:
         with open(json_file_path, 'r', encoding='utf-8') as file:
             fallback_rooms = json.load(file)

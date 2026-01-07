@@ -340,6 +340,14 @@ html, body {
     background: var(--dark-green);
 }
 
+.sidebar-toggle svg {
+    transition: transform 0.3s ease;
+}
+
+.admin-sidebar.collapsed .sidebar-toggle svg {
+    transform: rotate(180deg);
+}
+
 .toggle-icon {
     display: none;
 }
@@ -370,7 +378,9 @@ html, body {
     cursor: pointer;
     transition: all 0.3s ease;
     border-left: 4px solid transparent;
-    font-weight: 500;
+    font-family: 'Playfair Display', serif;
+    font-weight: 600;
+    font-size: 15px;
     position: relative;
     white-space: nowrap;
 }
@@ -561,7 +571,7 @@ html, body {
     border: 1px solid rgba(212, 184, 150, 0.35);
     position: fixed;
     top: 80px;
-    left: 280px;
+    left: 260px;
     height: calc(100vh - 100px);
     max-height: calc(100vh - 100px);
     display: flex;
@@ -571,8 +581,8 @@ html, body {
 }
 
 /* When sidebar is collapsed */
-.admin-sidebar.collapsed ~ .admin-content .filter-panel {
-    left: 80px;
+.admin-sidebar.collapsed ~ .filter-panel {
+    left: 70px;
 }
 
 .filter-header {
@@ -584,9 +594,92 @@ html, body {
     flex-shrink: 0;
 }
 
+.filter-header h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 14px;
+    color: var(--dark-green);
+    font-weight: 600;
+    margin: 0;
+}
+
 .filter-header svg {
     color: var(--sage-green);
     flex-shrink: 0;
+}
+
+/* Filter Groups */
+.filter-group {
+    padding: 0 14px;
+    margin-bottom: 12px;
+}
+
+.filter-group label {
+    display: block;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.filter-group select,
+.filter-group input[type="date"] {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    color: var(--text-dark);
+    background: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.filter-group select:focus,
+.filter-group input[type="date"]:focus {
+    outline: none;
+    border-color: var(--sage-green);
+    box-shadow: 0 0 0 2px rgba(123, 155, 126, 0.1);
+}
+
+.filter-group select:hover,
+.filter-group input[type="date"]:hover {
+    border-color: var(--sage-green);
+}
+
+.filter-actions {
+    padding: 10px 14px;
+    border-top: 1px solid rgba(212, 184, 150, 0.3);
+    margin-top: auto;
+}
+
+.btn-reset {
+    width: 100%;
+    padding: 8px 12px;
+    background: transparent;
+    color: var(--sage-green);
+    border: 1px solid var(--sage-green);
+    border-radius: 4px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-reset:hover {
+    background: var(--sage-green);
+    color: white;
+}
+
+.filter-results {
+    padding: 10px 14px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-light);
+    border-top: 1px solid rgba(212, 184, 150, 0.3);
 }
 
 .filter-header h4 {
@@ -1869,6 +1962,7 @@ html, body {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+    margin-left: 220px;
     padding: 20px 25px;
     background: rgba(250, 248, 243, 0.85);
     backdrop-filter: blur(10px);
@@ -1919,6 +2013,11 @@ html, body {
     display: flex;
     flex-direction: column;
     gap: 15px;
+    margin-left: 220px;
+}
+
+.calendar-legend {
+    margin-left: 220px;
 }
 
 .room-calendar-row {

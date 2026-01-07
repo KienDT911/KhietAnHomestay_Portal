@@ -276,6 +276,12 @@ function switchTab(tabName) {
     // Collapse sidebar after selecting a tab
     collapseSidebar();
     
+    // Show/hide filter panel based on tab
+    const filterPanel = document.getElementById('dashboard-filter-panel');
+    if (filterPanel) {
+        filterPanel.style.display = tabName === 'dashboard' ? 'flex' : 'none';
+    }
+    
     // Update content based on tab
     if (tabName === 'dashboard') {
         updateDashboard();
