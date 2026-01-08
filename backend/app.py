@@ -28,6 +28,7 @@ json_file_path = os.path.join(os.path.dirname(__file__), 'rooms_data.json')
 
 try:
     uri = os.getenv('MONGODB_URI')
+    print(f"Using MongoDB URI: {uri}")
     client = MongoClient(
         uri, 
         server_api=ServerApi('1'),
