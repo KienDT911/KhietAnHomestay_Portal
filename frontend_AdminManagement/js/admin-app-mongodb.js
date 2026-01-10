@@ -492,14 +492,6 @@ function addCalendarLegend(container) {
             <span>Today</span>
         </div>
         <div class="legend-item">
-            <div class="legend-color available"></div>
-            <span>Available</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color booked"></div>
-            <span>Booked</span>
-        </div>
-        <div class="legend-item">
             <div class="legend-color past"></div>
             <span>Past Date</span>
         </div>
@@ -553,7 +545,6 @@ function createRoomCalendarRow(room) {
             <p>$${room.price}/night</p>
             <p>${room.capacity || room.persons} guests</p>
         </div>
-        <span class="room-status-badge ${room.status}">${room.status.toUpperCase()}</span>
     `;
     infoPanel.style.cursor = 'pointer';
     infoPanel.onclick = () => openQuickEditModal(room.room_id || room.id);
@@ -587,6 +578,10 @@ function createCalendarGrid(room) {
     
     // Get booked dates for this room
     const bookedDates = getBookedDatesForRoom(room);
+    const bookedIntervals = getBookedIntervalsForRoom(room);
+    
+    // Build a map of date to interval info for booking bars
+    const dateToIntervalInfo = buildDateToIntervalMap(bookedIntervals, currentCalendarYear, currentCalendarMonth);
     
     // Get current date info
     const today = new Date();
@@ -612,7 +607,8 @@ function createCalendarGrid(room) {
         
         const dayCell = document.createElement('div');
         dayCell.className = 'calendar-day';
-        dayCell.textContent = day;
+        dayCell.dataset.date = dateStr;
+        dayCell.dataset.roomId = room.room_id || room.id;
         
         // Check if today
         if (dateStr === todayStr) {
@@ -627,14 +623,165 @@ function createCalendarGrid(room) {
         // Check if booked
         if (bookedDates.has(dateStr)) {
             dayCell.classList.add('booked');
-        } else if (!dayCell.classList.contains('past')) {
-            dayCell.classList.add('available');
+            const interval = findIntervalForDate(bookedIntervals, dateStr);
+            const intervalInfo = dateToIntervalInfo.get(dateStr);
+            
+            // Add day number as small text
+            const dayNumber = document.createElement('span');
+            dayNumber.className = 'day-number';
+            dayNumber.textContent = day;
+            dayCell.appendChild(dayNumber);
+            
+            // Add booking bar based on position in interval
+            if (intervalInfo) {
+                const bookingBar = createBookingBar(interval, intervalInfo, room);
+                dayCell.appendChild(bookingBar);
+            }
+            
+            dayCell.onclick = (e) => handleBookedDateClick(room, interval, e);
+            dayCell.style.cursor = 'pointer';
+        } else {
+            dayCell.textContent = day;
+            if (!dayCell.classList.contains('past')) {
+                dayCell.classList.add('available');
+                dayCell.classList.add('selectable');
+                // Add click handler for date selection
+                dayCell.onclick = (e) => handleDateSelection(e, room, date);
+            }
         }
         
         grid.appendChild(dayCell);
     }
     
     return grid;
+}
+
+// Build a map of date to interval position info (accounting for week row breaks)
+function buildDateToIntervalMap(intervals, year, month) {
+    const dateToInfo = new Map();
+    const firstOfMonth = new Date(year, month, 1);
+    const lastOfMonth = new Date(year, month + 1, 0);
+    const startDayOfWeek = firstOfMonth.getDay(); // 0 = Sunday
+    
+    intervals.forEach(interval => {
+        const checkIn = new Date(interval.checkIn);
+        const checkOut = new Date(interval.checkOut);
+        
+        // Get dates in this month for this interval
+        let current = new Date(checkIn);
+        let daysInInterval = [];
+        
+        while (current < checkOut) {
+            if (current >= firstOfMonth && current <= lastOfMonth) {
+                const dateStr = formatDateString(current);
+                const dayOfMonth = current.getDate();
+                // Calculate which grid row this day is in
+                const gridPosition = startDayOfWeek + dayOfMonth - 1;
+                const weekRow = Math.floor(gridPosition / 7);
+                const dayOfWeek = current.getDay(); // 0 = Sunday
+                
+                daysInInterval.push({
+                    dateStr: dateStr,
+                    weekRow: weekRow,
+                    dayOfWeek: dayOfWeek
+                });
+            }
+            current.setDate(current.getDate() + 1);
+        }
+        
+        // Group days by week row
+        const weekGroups = {};
+        daysInInterval.forEach(dayInfo => {
+            if (!weekGroups[dayInfo.weekRow]) {
+                weekGroups[dayInfo.weekRow] = [];
+            }
+            weekGroups[dayInfo.weekRow].push(dayInfo);
+        });
+        
+        // Mark position for each date within its week row segment
+        Object.values(weekGroups).forEach(weekDays => {
+            weekDays.forEach((dayInfo, index) => {
+                let position = 'middle';
+                const isFirstInRow = index === 0;
+                const isLastInRow = index === weekDays.length - 1;
+                const isFirstOfBooking = dayInfo.dateStr === daysInInterval[0].dateStr;
+                const isLastOfBooking = dayInfo.dateStr === daysInInterval[daysInInterval.length - 1].dateStr;
+                
+                if (weekDays.length === 1) {
+                    position = 'single';
+                } else if (isFirstInRow) {
+                    position = 'row-start';
+                } else if (isLastInRow) {
+                    position = 'row-end';
+                }
+                
+                // Determine bar style based on booking edges
+                let barStyle = 'middle';
+                if (isFirstOfBooking && isLastOfBooking) {
+                    barStyle = 'single';
+                } else if (isFirstOfBooking) {
+                    barStyle = 'start';
+                } else if (isLastOfBooking) {
+                    barStyle = 'end';
+                } else if (isFirstInRow) {
+                    barStyle = 'continue-start';
+                } else if (isLastInRow) {
+                    barStyle = 'continue-end';
+                }
+                
+                dateToInfo.set(dayInfo.dateStr, {
+                    position: position,
+                    barStyle: barStyle,
+                    daysInRowSegment: weekDays.length,
+                    indexInRow: index,
+                    guestName: interval.guestName || 'Guest',
+                    interval: interval,
+                    isFirstOfBooking: isFirstOfBooking
+                });
+            });
+        });
+    });
+    
+    return dateToInfo;
+}
+
+// Create booking bar element
+function createBookingBar(interval, intervalInfo, room) {
+    const bar = document.createElement('div');
+    
+    // Determine CSS class based on bar style
+    let barClass = 'booking-bar';
+    if (intervalInfo.barStyle === 'single') {
+        barClass += ' booking-bar-single';
+    } else if (intervalInfo.barStyle === 'start') {
+        barClass += ' booking-bar-start';
+    } else if (intervalInfo.barStyle === 'end') {
+        barClass += ' booking-bar-end';
+    } else if (intervalInfo.barStyle === 'continue-start') {
+        barClass += ' booking-bar-continue-start';
+    } else if (intervalInfo.barStyle === 'continue-end') {
+        barClass += ' booking-bar-continue-end';
+    } else {
+        barClass += ' booking-bar-middle';
+    }
+    bar.className = barClass;
+    
+    // Only show guest name on row-start or single positions
+    if (intervalInfo.position === 'row-start' || intervalInfo.position === 'single') {
+        const guestName = intervalInfo.guestName;
+        const maxLen = Math.min(intervalInfo.daysInRowSegment * 8, 20);
+        const displayName = guestName.length > maxLen ? guestName.substring(0, maxLen) + '...' : guestName;
+        bar.textContent = displayName;
+        
+        // Calculate width to span remaining days in this row segment
+        const daysToSpan = intervalInfo.daysInRowSegment;
+        bar.style.width = `calc(${daysToSpan * 100}% + ${(daysToSpan - 1) * 4}px)`;
+    } else {
+        // Hide bar for non-start cells in the row (bar spans from row-start)
+        bar.style.display = 'none';
+    }
+    
+    return bar;
 }
 
 // Get booked dates for a room from bookedIntervals
@@ -1048,4 +1195,479 @@ function closeTakenIdsPopup() {
     const popup = document.getElementById('taken-ids-popup');
     if (overlay) overlay.remove();
     if (popup) popup.remove();
+}
+
+// ===== Date Selection and Booking System =====
+
+let selectedRoom = null;
+let selectedDates = new Set(); // Store multiple selected dates
+let currentBookingInterval = null;
+let lastClickedCell = null;
+
+// Get booked intervals for a room
+function getBookedIntervalsForRoom(room) {
+    return room.bookedIntervals || [];
+}
+
+// Find the booking interval that contains a specific date
+function findIntervalForDate(intervals, dateStr) {
+    return intervals.find(interval => {
+        const checkIn = new Date(interval.checkIn);
+        const checkOut = new Date(interval.checkOut);
+        const targetDate = new Date(dateStr);
+        
+        return targetDate >= checkIn && targetDate < checkOut;
+    });
+}
+
+// Handle click on booked date - show unlock option
+function handleBookedDateClick(room, interval, event) {
+    if (!interval) return;
+    
+    selectedRoom = room;
+    currentBookingInterval = interval;
+    lastClickedCell = event?.currentTarget;
+    
+    // Populate unlock form
+    document.getElementById('unlock-room-name').textContent = room.name;
+    document.getElementById('unlock-guest-name').textContent = interval.guestName || 'N/A';
+    document.getElementById('unlock-checkin-display').textContent = formatDateDisplay(interval.checkIn);
+    document.getElementById('unlock-checkout-display').textContent = formatDateDisplay(interval.checkOut);
+    
+    const nights = calculateNights(interval.checkIn, interval.checkOut);
+    document.getElementById('unlock-duration').textContent = nights;
+    
+    // Show modal with unlock form
+    document.getElementById('booking-modal-title').textContent = 'Cancel Booking';
+    document.getElementById('booking-form').style.display = 'none';
+    document.getElementById('unlock-form').style.display = 'block';
+    
+    showModalAboveSelection();
+}
+
+// Handle date selection for booking - toggle individual days
+function handleDateSelection(event, room, date) {
+    const cell = event.currentTarget;
+    
+    // Don't allow selection on past or booked dates
+    if (cell.classList.contains('past') || cell.classList.contains('booked')) {
+        return;
+    }
+    
+    // If selecting from a different room, reset selection
+    if (selectedRoom && (selectedRoom.room_id || selectedRoom.id) !== (room.room_id || room.id)) {
+        resetDateSelection();
+    }
+    
+    selectedRoom = room;
+    lastClickedCell = cell;
+    
+    const dateStr = formatDateString(date);
+    
+    // Toggle this date - if already selected, remove it; otherwise add it
+    if (selectedDates.has(dateStr)) {
+        selectedDates.delete(dateStr);
+        cell.classList.remove('day-selected');
+    } else {
+        selectedDates.add(dateStr);
+        cell.classList.add('day-selected');
+    }
+    
+    // Update visual immediately on the clicked cell
+    updateCellHighlight(cell, selectedDates.has(dateStr));
+    
+    // If we have selected dates, show the booking button
+    updateBookingButton();
+}
+
+// Update single cell highlight immediately
+function updateCellHighlight(cell, isSelected) {
+    if (isSelected) {
+        cell.classList.add('day-selected');
+    } else {
+        cell.classList.remove('day-selected');
+    }
+}
+
+// Update booking button visibility
+function updateBookingButton() {
+    let confirmBtn = document.getElementById('confirm-selection-btn');
+    
+    if (selectedDates.size > 0) {
+        if (!confirmBtn) {
+            // Create floating confirm button
+            confirmBtn = document.createElement('div');
+            confirmBtn.id = 'confirm-selection-btn';
+            confirmBtn.className = 'floating-confirm-btn';
+            confirmBtn.innerHTML = `
+                <span class="selected-count">${selectedDates.size} day(s) selected</span>
+                <button class="btn-confirm" onclick="openBookingFormForSelectedDates()">Book Now</button>
+                <button class="btn-clear" onclick="resetDateSelection()">Clear</button>
+            `;
+            document.body.appendChild(confirmBtn);
+        } else {
+            confirmBtn.querySelector('.selected-count').textContent = `${selectedDates.size} day(s) selected`;
+            confirmBtn.style.display = 'flex';
+        }
+    } else {
+        if (confirmBtn) {
+            confirmBtn.style.display = 'none';
+        }
+    }
+}
+
+// Open booking form for selected dates
+function openBookingFormForSelectedDates() {
+    if (selectedDates.size === 0 || !selectedRoom) return;
+    
+    // Sort dates and get first and last
+    const sortedDates = Array.from(selectedDates).sort();
+    const firstDate = sortedDates[0];
+    const lastDate = sortedDates[sortedDates.length - 1];
+    
+    // Calculate checkout (day after last selected date)
+    const checkoutDate = new Date(lastDate);
+    checkoutDate.setDate(checkoutDate.getDate() + 1);
+    
+    showBookingFormMultiple(selectedRoom, firstDate, formatDateString(checkoutDate), sortedDates);
+}
+
+// Check if any dates in range are booked
+function isRangeBooked(room, startDate, endDate) {
+    const bookedDates = getBookedDatesForRoom(room);
+    let current = new Date(startDate);
+    
+    while (current < endDate) {
+        const dateStr = formatDateString(current);
+        if (bookedDates.has(dateStr)) {
+            return true;
+        }
+        current.setDate(current.getDate() + 1);
+    }
+    
+    return false;
+}
+
+// Highlight selected dates (called when re-rendering calendar)
+function highlightSelectedDates() {
+    // Clear previous highlights
+    document.querySelectorAll('.calendar-day').forEach(cell => {
+        cell.classList.remove('day-selected', 'selected-start', 'selected-end', 'selected-range');
+    });
+    
+    if (selectedDates.size === 0 || !selectedRoom) return;
+    
+    // Highlight all selected cells for the selected room's calendar
+    const roomId = selectedRoom.room_id || selectedRoom.id;
+    const cells = document.querySelectorAll(`.calendar-day[data-room-id="${roomId}"]`);
+    
+    cells.forEach(cell => {
+        const dateStr = cell.dataset.date;
+        if (selectedDates.has(dateStr)) {
+            cell.classList.add('day-selected');
+        }
+    });
+}
+
+// Reset date selection
+function resetDateSelection() {
+    selectedDates.clear();
+    selectedRoom = null;
+    
+    document.querySelectorAll('.calendar-day').forEach(cell => {
+        cell.classList.remove('day-selected', 'selected-start', 'selected-end', 'selected-range');
+    });
+    
+    // Hide confirm button
+    const confirmBtn = document.getElementById('confirm-selection-btn');
+    if (confirmBtn) {
+        confirmBtn.style.display = 'none';
+    }
+}
+
+// Show booking form with selected dates
+function showBookingFormMultiple(room, checkIn, checkOut, selectedDatesList) {
+    // Hide the floating confirm button to avoid overlap
+    const floatingBtn = document.getElementById('confirm-selection-btn');
+    if (floatingBtn) {
+        floatingBtn.style.display = 'none';
+    }
+    
+    // Populate booking form
+    document.getElementById('booking-room-name').textContent = room.name;
+    document.getElementById('booking-checkin-display').textContent = formatDateDisplay(checkIn);
+    document.getElementById('booking-checkout-display').textContent = formatDateDisplay(checkOut);
+    
+    const nights = selectedDatesList.length;
+    document.getElementById('booking-duration').textContent = nights;
+    
+    // Clear previous form data
+    document.getElementById('guest-name').value = '';
+    document.getElementById('guest-phone').value = '';
+    document.getElementById('guest-email').value = '';
+    document.getElementById('booking-notes').value = '';
+    
+    // Reset confirm button to disabled state
+    const confirmBtn = document.getElementById('confirm-booking-btn');
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+    }
+    
+    // Show modal with booking form
+    document.getElementById('booking-modal-title').textContent = 'Create Booking';
+    document.getElementById('booking-form').style.display = 'block';
+    document.getElementById('unlock-form').style.display = 'none';
+    
+    // Position modal above selection
+    showModalAboveSelection();
+    
+    // Set up form submission
+    const form = document.getElementById('booking-form');
+    form.onsubmit = (e) => {
+        e.preventDefault();
+        confirmBookingMultiple(checkIn, checkOut);
+    };
+}
+
+// Show booking form with selected dates (legacy support)
+function showBookingForm(room, startDate, endDate) {
+    const checkIn = formatDateString(startDate);
+    const checkOut = formatDateString(endDate);
+    
+    // Build selected dates list
+    const selectedDatesList = [];
+    let current = new Date(startDate);
+    while (current < endDate) {
+        selectedDatesList.push(formatDateString(current));
+        current.setDate(current.getDate() + 1);
+    }
+    
+    showBookingFormMultiple(room, checkIn, checkOut, selectedDatesList);
+}
+
+// Show modal positioned to not cover the selection
+function showModalAboveSelection() {
+    const modal = document.getElementById('booking-modal');
+    const modalContent = modal.querySelector('.booking-modal-content');
+    
+    modal.style.display = 'flex';
+    modal.classList.remove('positioned-above', 'positioned-below');
+    
+    // Reset any previous drag position
+    modalContent.style.position = 'relative';
+    modalContent.style.left = '0';
+    modalContent.style.top = '0';
+    
+    // Get the selected cells position
+    if (lastClickedCell) {
+        const cellRect = lastClickedCell.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const modalHeight = modalContent.offsetHeight || 400;
+        
+        // Calculate available space above and below
+        const spaceAbove = cellRect.top;
+        const spaceBelow = viewportHeight - cellRect.bottom;
+        
+        // Position modal where there's more space
+        if (spaceAbove > spaceBelow && spaceAbove > modalHeight + 50) {
+            // Position above the selection
+            modal.classList.add('positioned-above');
+            modalContent.style.marginTop = '0';
+            modalContent.style.marginBottom = `${viewportHeight - cellRect.top + 20}px`;
+        } else {
+            // Position below the selection
+            modal.classList.add('positioned-below');
+            modalContent.style.marginTop = `${cellRect.bottom + 20}px`;
+            modalContent.style.marginBottom = '0';
+        }
+    }
+    
+    // Make modal draggable
+    makeModalDraggable(modalContent);
+    
+    // Focus on guest name input
+    setTimeout(() => {
+        const guestNameInput = document.getElementById('guest-name');
+        if (guestNameInput) guestNameInput.focus();
+    }, 100);
+}
+
+// Make modal draggable
+function makeModalDraggable(modalContent) {
+    const header = modalContent.querySelector('.modal-header');
+    if (!header) return;
+    
+    let isDragging = false;
+    let startX, startY, initialX, initialY;
+    
+    // Remove previous listeners if any
+    header.onmousedown = null;
+    
+    header.onmousedown = function(e) {
+        // Don't start drag on close button click
+        if (e.target.closest('.close-btn')) return;
+        
+        isDragging = true;
+        modalContent.classList.add('dragging');
+        
+        startX = e.clientX;
+        startY = e.clientY;
+        initialX = parseInt(modalContent.style.left || '0');
+        initialY = parseInt(modalContent.style.top || '0');
+        
+        document.onmousemove = function(e) {
+            if (!isDragging) return;
+            
+            e.preventDefault();
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            
+            modalContent.style.left = `${initialX + dx}px`;
+            modalContent.style.top = `${initialY + dy}px`;
+        };
+        
+        document.onmouseup = function() {
+            isDragging = false;
+            modalContent.classList.remove('dragging');
+            document.onmousemove = null;
+            document.onmouseup = null;
+        };
+    };
+}
+
+// Calculate number of nights
+function calculateNights(startDate, endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diffTime = Math.abs(end - start);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+}
+
+// Format date for display
+function formatDateDisplay(date) {
+    const d = new Date(date);
+    const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
+    return d.toLocaleDateString('en-US', options);
+}
+
+// Confirm booking
+async function confirmBooking() {
+    // Redirect to new function
+    const sortedDates = Array.from(selectedDates).sort();
+    if (sortedDates.length === 0) {
+        alert('Please select dates first');
+        return;
+    }
+    const checkOut = new Date(sortedDates[sortedDates.length - 1]);
+    checkOut.setDate(checkOut.getDate() + 1);
+    confirmBookingMultiple(sortedDates[0], formatDateString(checkOut));
+}
+
+// Confirm booking with multiple dates
+async function confirmBookingMultiple(checkIn, checkOut) {
+    if (!selectedRoom || selectedDates.size === 0) {
+        alert('Please select dates first');
+        return;
+    }
+    
+    const guestName = document.getElementById('guest-name').value.trim();
+    if (!guestName) {
+        alert('Guest name is required');
+        return;
+    }
+    
+    const bookingData = {
+        checkIn: checkIn,
+        checkOut: checkOut,
+        guestName: guestName,
+        guestPhone: document.getElementById('guest-phone').value.trim(),
+        guestEmail: document.getElementById('guest-email').value.trim(),
+        notes: document.getElementById('booking-notes').value.trim()
+    };
+    
+    try {
+        const roomId = selectedRoom.room_id || selectedRoom.id;
+        const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/book`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(bookingData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('Booking created successfully!');
+            closeBookingModal();
+            resetDateSelection();
+            await roomManager.loadRooms();
+        } else {
+            alert('Failed to create booking: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error creating booking:', error);
+        alert('Error creating booking. Please try again.');
+    }
+}
+
+// Confirm unlock/cancel booking
+async function confirmUnlockRoom() {
+    if (!selectedRoom || !currentBookingInterval) {
+        alert('No booking selected');
+        return;
+    }
+    
+    try {
+        const roomId = selectedRoom.room_id || selectedRoom.id;
+        const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/unbook`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                checkIn: currentBookingInterval.checkIn,
+                checkOut: currentBookingInterval.checkOut
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('Booking cancelled successfully!');
+            closeBookingModal();
+            currentBookingInterval = null;
+            await roomManager.loadRooms();
+        } else {
+            alert('Failed to cancel booking: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error cancelling booking:', error);
+        alert('Error cancelling booking. Please try again.');
+    }
+}
+
+// Close booking modal
+function closeBookingModal() {
+    const modal = document.getElementById('booking-modal');
+    const modalContent = modal.querySelector('.booking-modal-content');
+    
+    modal.style.display = 'none';
+    modal.classList.remove('positioned-above', 'positioned-below');
+    modalContent.style.marginTop = '';
+    modalContent.style.marginBottom = '';
+    
+    resetDateSelection();
+    currentBookingInterval = null;
+    lastClickedCell = null;
+    
+    // Show floating button again (if needed - will be updated by updateBookingButton)
+    updateBookingButton();
+}
+
+// Validate booking form and enable/disable confirm button
+function validateBookingForm() {
+    const guestName = document.getElementById('guest-name').value.trim();
+    const confirmBtn = document.getElementById('confirm-booking-btn');
+    
+    if (confirmBtn) {
+        confirmBtn.disabled = !guestName;
+    }
 }

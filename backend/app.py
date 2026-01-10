@@ -412,6 +412,205 @@ def delete_room(room_id):
             'error': str(e)
         }), 500
 
+# ===== Booking API Endpoints =====
+
+@app.route('/backend/api/admin/rooms/<room_id>/book', methods=['POST'])
+def book_room(room_id):
+    """Create a booking for a room"""
+    try:
+        data = request.json
+        
+        # Validate required fields
+        if not data.get('checkIn') or not data.get('checkOut') or not data.get('guestName'):
+            return jsonify({
+                'success': False,
+                'error': 'Missing required fields: checkIn, checkOut, guestName'
+            }), 400
+        
+        # Create booking interval
+        new_interval = {
+            'checkIn': data['checkIn'],
+            'checkOut': data['checkOut'],
+            'guestName': data['guestName'],
+            'guestPhone': data.get('guestPhone', ''),
+            'guestEmail': data.get('guestEmail', ''),
+            'notes': data.get('notes', ''),
+            'createdAt': datetime.now().isoformat()
+        }
+        
+        if rooms_collection is None:
+            # Fallback mode
+            room = next((r for r in fallback_rooms if r.get('_id') == room_id), None)
+            if not room:
+                return jsonify({
+                    'success': False,
+                    'error': 'Room not found'
+                }), 404
+            
+            # Add to bookedIntervals
+            if 'bookedIntervals' not in room:
+                room['bookedIntervals'] = []
+            room['bookedIntervals'].append(new_interval)
+            
+            # Update booking status
+            room['bookingStatus'] = 'booked'
+            room['updated_at'] = datetime.now().isoformat()
+            
+            # Save to JSON
+            with open(json_file_path, 'w') as f:
+                json.dump(fallback_rooms, f, indent=2)
+        else:
+            # MongoDB mode
+            # Find room
+            room = rooms_collection.find_one({'_id': room_id})
+            if not room:
+                try:
+                    obj_id = ObjectId(room_id)
+                    room = rooms_collection.find_one({'_id': obj_id})
+                    room_id_filter = {'_id': obj_id}
+                except:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Room not found'
+                    }), 404
+            else:
+                room_id_filter = {'_id': room_id}
+            
+            # Add booking interval
+            result = rooms_collection.update_one(
+                room_id_filter,
+                {
+                    '$push': {'bookedIntervals': new_interval},
+                    '$set': {
+                        'bookingStatus': 'booked',
+                        'updated_at': datetime.now()
+                    }
+                }
+            )
+            
+            if result.modified_count == 0:
+                return jsonify({
+                    'success': False,
+                    'error': 'Failed to update room'
+                }), 500
+        
+        return jsonify({
+            'success': True,
+            'message': 'Booking created successfully',
+            'data': new_interval
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/backend/api/admin/rooms/<room_id>/unbook', methods=['POST'])
+def unbook_room(room_id):
+    """Cancel a booking for a room"""
+    try:
+        data = request.json
+        
+        # Validate required fields
+        if not data.get('checkIn') or not data.get('checkOut'):
+            return jsonify({
+                'success': False,
+                'error': 'Missing required fields: checkIn, checkOut'
+            }), 400
+        
+        check_in = data['checkIn']
+        check_out = data['checkOut']
+        
+        if rooms_collection is None:
+            # Fallback mode
+            room = next((r for r in fallback_rooms if r.get('_id') == room_id), None)
+            if not room:
+                return jsonify({
+                    'success': False,
+                    'error': 'Room not found'
+                }), 404
+            
+            # Remove booking interval
+            if 'bookedIntervals' in room:
+                original_length = len(room['bookedIntervals'])
+                room['bookedIntervals'] = [
+                    interval for interval in room['bookedIntervals']
+                    if not (interval['checkIn'] == check_in and interval['checkOut'] == check_out)
+                ]
+                
+                if len(room['bookedIntervals']) == original_length:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Booking not found'
+                    }), 404
+                
+                # Update booking status if no more bookings
+                if len(room['bookedIntervals']) == 0:
+                    room['bookingStatus'] = 'available'
+                
+                room['updated_at'] = datetime.now().isoformat()
+                
+                # Save to JSON
+                with open(json_file_path, 'w') as f:
+                    json.dump(fallback_rooms, f, indent=2)
+        else:
+            # MongoDB mode
+            # Find room
+            room = rooms_collection.find_one({'_id': room_id})
+            if not room:
+                try:
+                    obj_id = ObjectId(room_id)
+                    room = rooms_collection.find_one({'_id': obj_id})
+                    room_id_filter = {'_id': obj_id}
+                except:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Room not found'
+                    }), 404
+            else:
+                room_id_filter = {'_id': room_id}
+            
+            # Remove booking interval
+            result = rooms_collection.update_one(
+                room_id_filter,
+                {
+                    '$pull': {
+                        'bookedIntervals': {
+                            'checkIn': check_in,
+                            'checkOut': check_out
+                        }
+                    },
+                    '$set': {
+                        'updated_at': datetime.now()
+                    }
+                }
+            )
+            
+            if result.modified_count == 0:
+                return jsonify({
+                    'success': False,
+                    'error': 'Booking not found or failed to update'
+                }), 404
+            
+            # Check if there are any remaining bookings
+            updated_room = rooms_collection.find_one(room_id_filter)
+            if not updated_room.get('bookedIntervals') or len(updated_room.get('bookedIntervals', [])) == 0:
+                # No more bookings, set status to available
+                rooms_collection.update_one(
+                    room_id_filter,
+                    {'$set': {'bookingStatus': 'available'}}
+                )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Booking cancelled successfully'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 # ===== Health Check =====
 @app.route('/backend/health', methods=['GET'])
 def health_check():

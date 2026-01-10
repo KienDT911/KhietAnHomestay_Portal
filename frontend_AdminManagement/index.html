@@ -391,6 +391,74 @@
         </div>
     </div>
 
+    <!-- Booking Modal -->
+    <div id="booking-modal" class="modal" style="display:none;">
+        <div class="modal-content booking-modal-content">
+            <span class="modal-close" onclick="closeBookingModal()">&times;</span>
+            <h2 id="booking-modal-title">Create Booking</h2>
+            
+            <div id="booking-form-container">
+                <!-- For available dates -->
+                <form id="booking-form" style="display:none;">
+                    <div class="booking-summary">
+                        <p><strong>Room:</strong> <span id="booking-room-name"></span></p>
+                        <p><strong>Check-in:</strong> <span id="booking-checkin-display"></span></p>
+                        <p><strong>Check-out:</strong> <span id="booking-checkout-display"></span></p>
+                        <p><strong>Duration:</strong> <span id="booking-duration"></span> night(s)</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="guest-name">Guest Name *</label>
+                        <input type="text" id="guest-name" required placeholder="Enter guest full name" oninput="validateBookingForm()">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="guest-phone">Guest Phone</label>
+                        <input type="tel" id="guest-phone" placeholder="Enter phone number (optional)">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="guest-email">Guest Email</label>
+                        <input type="email" id="guest-email" placeholder="Enter email address (optional)">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="booking-notes">Booking Notes</label>
+                        <textarea id="booking-notes" rows="3" placeholder="Additional notes or special requests"></textarea>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" id="confirm-booking-btn" class="btn-primary" disabled>Confirm Booking</button>
+                        <button type="button" class="btn-secondary" onclick="closeBookingModal()">Cancel</button>
+                    </div>
+                </form>
+                
+                <!-- For booked dates -->
+                <div id="unlock-form" style="display:none;">
+                    <div class="booking-summary warning">
+                        <p><strong>Room:</strong> <span id="unlock-room-name"></span></p>
+                        <p><strong>Guest:</strong> <span id="unlock-guest-name"></span></p>
+                        <p><strong>Check-in:</strong> <span id="unlock-checkin-display"></span></p>
+                        <p><strong>Check-out:</strong> <span id="unlock-checkout-display"></span></p>
+                        <p><strong>Duration:</strong> <span id="unlock-duration"></span> night(s)</p>
+                    </div>
+                    
+                    <div class="warning-message">
+                        <svg viewBox="0 0 24 24" width="24" height="24">
+                            <path fill="currentColor" d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+                        </svg>
+                        <p>Are you sure you want to cancel this booking? This action cannot be undone.</p>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" class="btn-danger" onclick="confirmUnlockRoom()">Cancel Booking</button>
+                        <button type="button" class="btn-secondary" onclick="closeBookingModal()">Keep Booking</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="js/admin-app-mongodb.js"></script>
 </body>
 </html>
