@@ -2685,3 +2685,312 @@ html, body {
     opacity: 0.9;
     box-shadow: 0 15px 50px rgba(0, 0, 0, 0.3);
 }
+
+/* ===== Mobile Phone Responsive Fixes ===== */
+@media (max-width: 767px) {
+    /* Header - Keep all elements in one row */
+    .header-container {
+        flex-direction: row !important;
+        flex-wrap: nowrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        padding: 0 12px;
+        text-align: left;
+    }
+
+    .admin-header .admin-logo {
+        flex-shrink: 0;
+    }
+
+    .admin-header .logo-main {
+        font-size: 20px;
+    }
+
+    .admin-header .logo-sub {
+        font-size: 7px;
+        letter-spacing: 1.5px;
+    }
+
+    .admin-title {
+        position: static !important;
+        transform: none !important;
+        font-size: 14px;
+        margin: 0;
+        white-space: nowrap;
+        flex-shrink: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .header-actions {
+        flex-shrink: 0;
+        gap: 8px;
+    }
+
+    .admin-user {
+        display: none;
+    }
+
+    .btn-logout {
+        padding: 5px 10px;
+        font-size: 11px;
+    }
+
+    /* Filter Panel - Compact for mobile */
+    .filter-panel {
+        padding: 10px !important;
+        margin: 0 !important;
+        width: 100% !important;
+    }
+
+    .filter-header {
+        padding: 0 0 8px 0 !important;
+        margin-bottom: 8px !important;
+    }
+
+    .filter-header h3 {
+        font-size: 14px;
+    }
+
+    .filter-body {
+        gap: 8px !important;
+    }
+
+    .filter-section {
+        min-width: 0 !important;
+        flex: 1 1 calc(50% - 4px) !important;
+    }
+
+    .filter-section label {
+        font-size: 10px;
+        margin-bottom: 3px;
+    }
+
+    .filter-section select,
+    .filter-section input {
+        padding: 6px 8px !important;
+        font-size: 12px !important;
+        height: 32px;
+    }
+
+    .filter-row {
+        min-width: 100% !important;
+        gap: 8px !important;
+    }
+
+    .filter-section.half {
+        flex: 1 1 calc(50% - 4px) !important;
+    }
+
+    /* Calendar - Remove left margin and full width */
+    .rooms-calendar-container {
+        margin-left: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+    }
+
+    .calendar-legend {
+        margin-left: 0 !important;
+        padding: 10px !important;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .legend-item {
+        font-size: 10px;
+    }
+
+    .legend-color {
+        width: 12px;
+        height: 12px;
+    }
+
+    /* Calendar controls */
+    .calendar-controls {
+        padding: 10px !important;
+        flex-direction: row !important;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+    }
+
+    .calendar-controls h3 {
+        width: 100%;
+        text-align: center;
+        font-size: 16px;
+        margin-bottom: 5px;
+    }
+
+    .calendar-nav-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+
+    /* Room calendar row - stack vertically */
+    .room-calendar-row {
+        padding: 12px !important;
+        gap: 12px !important;
+        flex-direction: column;
+        margin: 0 !important;
+    }
+
+    .room-info-panel {
+        min-width: 100% !important;
+        max-width: 100% !important;
+        padding-right: 0 !important;
+        padding-bottom: 10px;
+        border-right: none !important;
+        border-bottom: 1px solid rgba(212, 184, 150, 0.4);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .room-info-panel .room-number {
+        font-size: 11px;
+        padding: 3px 8px;
+        margin-bottom: 0;
+    }
+
+    .room-info-panel h4 {
+        font-size: 14px;
+        margin-bottom: 0;
+        flex: 1;
+    }
+
+    .room-info-panel .room-details {
+        width: 100%;
+        font-size: 11px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .room-info-panel .room-details p {
+        margin: 0;
+    }
+
+    .room-info-panel .room-status-badge {
+        margin-top: 0;
+        font-size: 9px;
+        padding: 2px 8px;
+    }
+
+    /* Calendar grid - full width display */
+    .calendar-panel {
+        width: 100% !important;
+        overflow-x: auto;
+    }
+
+    .calendar-grid {
+        min-width: 100% !important;
+        gap: 2px;
+    }
+
+    .calendar-header {
+        font-size: 10px;
+        padding: 6px 2px;
+    }
+
+    .calendar-day {
+        font-size: 11px;
+        padding: 4px 2px;
+        min-height: 40px;
+    }
+
+    .calendar-day .day-number {
+        font-size: 11px;
+    }
+
+    /* Booking bar adjustments */
+    .booking-bar {
+        font-size: 8px !important;
+        padding: 2px 4px !important;
+        height: 14px !important;
+    }
+
+    .booking-bar-content {
+        font-size: 8px;
+    }
+
+    /* Dashboard content */
+    .admin-content {
+        padding: 15px 10px !important;
+    }
+
+    .dashboard-main-layout {
+        gap: 15px;
+    }
+
+    /* Quick room cards */
+    .rooms-quick-grid {
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important;
+        gap: 10px;
+    }
+
+    .quick-room-card {
+        padding: 25px 10px 10px !important;
+        min-height: 100px !important;
+    }
+
+    .quick-room-number {
+        font-size: 10px;
+        padding: 3px 6px;
+    }
+
+    .quick-room-status {
+        font-size: 8px;
+        padding: 2px 6px;
+    }
+
+    .quick-room-card h4 {
+        font-size: 13px;
+    }
+
+    .quick-room-card p {
+        font-size: 11px;
+    }
+}
+
+/* Extra small phones (below 400px) */
+@media (max-width: 400px) {
+    .header-container {
+        padding: 0 8px;
+    }
+
+    .admin-header .logo-main {
+        font-size: 18px;
+    }
+
+    .admin-title {
+        font-size: 12px;
+    }
+
+    .btn-logout {
+        padding: 4px 8px;
+        font-size: 10px;
+    }
+
+    .filter-section {
+        flex: 1 1 100% !important;
+    }
+
+    .filter-section.half {
+        flex: 1 1 calc(50% - 4px) !important;
+    }
+
+    .calendar-day {
+        font-size: 10px;
+        min-height: 36px;
+    }
+
+    .calendar-header {
+        font-size: 8px;
+    }
+
+    .rooms-quick-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
