@@ -2737,53 +2737,76 @@ html, body {
         font-size: 11px;
     }
 
-    /* Filter Panel - Compact for mobile */
+    /* Filter Panel - Much smaller and compact */
     .filter-panel {
-        padding: 10px !important;
-        margin: 0 !important;
+        padding: 8px 10px !important;
+        margin: 0 0 10px 0 !important;
         width: 100% !important;
     }
 
     .filter-header {
-        padding: 0 0 8px 0 !important;
-        margin-bottom: 8px !important;
+        padding: 0 0 5px 0 !important;
+        margin-bottom: 5px !important;
     }
 
     .filter-header h3 {
-        font-size: 14px;
+        font-size: 12px;
+        margin: 0;
     }
 
     .filter-body {
-        gap: 8px !important;
+        gap: 6px !important;
+        display: flex;
+        flex-wrap: wrap;
     }
 
     .filter-section {
         min-width: 0 !important;
-        flex: 1 1 calc(50% - 4px) !important;
+        flex: 1 1 calc(33.33% - 4px) !important;
+        margin-bottom: 0 !important;
     }
 
     .filter-section label {
-        font-size: 10px;
-        margin-bottom: 3px;
+        font-size: 8px !important;
+        margin-bottom: 2px !important;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
     .filter-section select,
     .filter-section input {
-        padding: 6px 8px !important;
-        font-size: 12px !important;
-        height: 32px;
+        padding: 4px 6px !important;
+        font-size: 11px !important;
+        height: 28px !important;
     }
 
     .filter-row {
         min-width: 100% !important;
-        gap: 8px !important;
+        gap: 6px !important;
+        display: flex;
     }
 
     .filter-section.half {
-        flex: 1 1 calc(50% - 4px) !important;
+        flex: 1 1 calc(50% - 3px) !important;
     }
 
-    /* Calendar - Remove left margin and full width */
+    .filter-footer {
+        padding: 5px 0 0 0 !important;
+        margin-top: 5px !important;
+    }
+
+    .filter-footer .btn-secondary {
+        padding: 5px 12px !important;
+        font-size: 10px !important;
+    }
+
+    /* Calendar Section - Full width horizontal */
+    .calendar-section {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
     .rooms-calendar-container {
         margin-left: 0 !important;
         padding: 0 !important;
@@ -2792,79 +2815,82 @@ html, body {
 
     .calendar-legend {
         margin-left: 0 !important;
-        padding: 10px !important;
+        padding: 8px !important;
         flex-wrap: wrap;
-        gap: 8px;
-    }
-
-    .legend-item {
-        font-size: 10px;
-    }
-
-    .legend-color {
-        width: 12px;
-        height: 12px;
-    }
-
-    /* Calendar controls */
-    .calendar-controls {
-        padding: 10px !important;
-        flex-direction: row !important;
-        flex-wrap: wrap;
-        gap: 10px;
+        gap: 6px;
         justify-content: center;
     }
 
-    .calendar-controls h3 {
+    .legend-item {
+        font-size: 9px;
+    }
+
+    .legend-color {
+        width: 10px;
+        height: 10px;
+    }
+
+    /* Calendar controls - Full width */
+    .calendar-controls {
+        padding: 8px 10px !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap;
+        gap: 8px;
+        justify-content: space-between;
+        align-items: center;
         width: 100%;
-        text-align: center;
-        font-size: 16px;
-        margin-bottom: 5px;
+    }
+
+    .calendar-controls h3 {
+        font-size: 14px;
+        margin: 0;
+        white-space: nowrap;
     }
 
     .calendar-nav-btn {
-        padding: 6px 12px;
-        font-size: 12px;
+        padding: 5px 10px;
+        font-size: 11px;
     }
 
-    /* Room calendar row - stack vertically */
+    /* Room calendar row - Full width horizontal */
     .room-calendar-row {
-        padding: 12px !important;
-        gap: 12px !important;
+        padding: 10px !important;
+        gap: 10px !important;
         flex-direction: column;
-        margin: 0 !important;
+        margin: 0 0 10px 0 !important;
+        width: 100% !important;
     }
 
     .room-info-panel {
         min-width: 100% !important;
         max-width: 100% !important;
         padding-right: 0 !important;
-        padding-bottom: 10px;
+        padding-bottom: 8px;
         border-right: none !important;
         border-bottom: 1px solid rgba(212, 184, 150, 0.4);
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
     }
 
     .room-info-panel .room-number {
-        font-size: 11px;
-        padding: 3px 8px;
+        font-size: 10px;
+        padding: 2px 6px;
         margin-bottom: 0;
     }
 
     .room-info-panel h4 {
-        font-size: 14px;
+        font-size: 13px;
         margin-bottom: 0;
         flex: 1;
     }
 
     .room-info-panel .room-details {
         width: 100%;
-        font-size: 11px;
+        font-size: 10px;
         display: flex;
-        gap: 10px;
+        gap: 8px;
         flex-wrap: wrap;
     }
 
@@ -2874,54 +2900,55 @@ html, body {
 
     .room-info-panel .room-status-badge {
         margin-top: 0;
-        font-size: 9px;
-        padding: 2px 8px;
+        font-size: 8px;
+        padding: 2px 6px;
     }
 
-    /* Calendar grid - full width display */
+    /* Calendar grid - Full width display */
     .calendar-panel {
         width: 100% !important;
-        overflow-x: auto;
+        overflow-x: visible !important;
     }
 
     .calendar-grid {
+        width: 100% !important;
         min-width: 100% !important;
         gap: 2px;
     }
 
     .calendar-header {
-        font-size: 10px;
-        padding: 6px 2px;
+        font-size: 9px;
+        padding: 5px 2px;
     }
 
     .calendar-day {
-        font-size: 11px;
-        padding: 4px 2px;
-        min-height: 40px;
+        font-size: 10px;
+        padding: 3px 1px;
+        min-height: 36px;
     }
 
     .calendar-day .day-number {
-        font-size: 11px;
+        font-size: 10px;
     }
 
     /* Booking bar adjustments */
     .booking-bar {
-        font-size: 8px !important;
-        padding: 2px 4px !important;
-        height: 14px !important;
+        font-size: 7px !important;
+        padding: 1px 3px !important;
+        height: 12px !important;
     }
 
     .booking-bar-content {
-        font-size: 8px;
+        font-size: 7px;
     }
 
     /* Dashboard content */
     .admin-content {
-        padding: 15px 10px !important;
+        padding: 10px 8px !important;
     }
 
     .dashboard-main-layout {
-        gap: 15px;
+        gap: 10px;
     }
 
     /* Quick room cards */
@@ -2952,6 +2979,33 @@ html, body {
     .quick-room-card p {
         font-size: 11px;
     }
+
+    /* Dashboard stats - smaller */
+    .dashboard-stats {
+        gap: 8px !important;
+    }
+
+    .stat-card {
+        padding: 8px 5px !important;
+    }
+
+    .stat-card h3 {
+        font-size: 8px !important;
+    }
+
+    .stat-number {
+        font-size: 18px !important;
+    }
+
+    /* Quick preview section */
+    .quick-preview {
+        padding: 12px !important;
+    }
+
+    .quick-preview h3 {
+        font-size: 16px;
+        margin-bottom: 12px;
+    }
 }
 
 /* Extra small phones (below 400px) */
@@ -2973,17 +3027,24 @@ html, body {
         font-size: 10px;
     }
 
+    /* Filter even more compact */
     .filter-section {
-        flex: 1 1 100% !important;
+        flex: 1 1 calc(50% - 3px) !important;
     }
 
     .filter-section.half {
-        flex: 1 1 calc(50% - 4px) !important;
+        flex: 1 1 calc(50% - 3px) !important;
+    }
+
+    .filter-section select,
+    .filter-section input {
+        height: 26px !important;
+        font-size: 10px !important;
     }
 
     .calendar-day {
-        font-size: 10px;
-        min-height: 36px;
+        font-size: 9px;
+        min-height: 32px;
     }
 
     .calendar-header {
@@ -2992,5 +3053,9 @@ html, body {
 
     .rooms-quick-grid {
         grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    .stat-number {
+        font-size: 16px !important;
     }
 }
