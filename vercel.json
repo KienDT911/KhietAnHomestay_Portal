@@ -4,12 +4,36 @@
     {
       "src": "api/index.py",
       "use": "@vercel/python"
+    },
+    {
+      "src": "frontend_AdminManagement/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
     {
-      "src": "/(.*)",
+      "src": "/backend/(.*)",
       "dest": "api/index.py"
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "frontend_AdminManagement/assets/$1"
+    },
+    {
+      "src": "/css/(.*)",
+      "dest": "frontend_AdminManagement/css/$1"
+    },
+    {
+      "src": "/js/(.*)",
+      "dest": "frontend_AdminManagement/js/$1"
+    },
+    {
+      "src": "/(.*\\.html)",
+      "dest": "frontend_AdminManagement/$1"
+    },
+    {
+      "src": "/",
+      "dest": "frontend_AdminManagement/index.html"
     }
   ]
 }
