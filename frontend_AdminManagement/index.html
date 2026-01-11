@@ -90,10 +90,19 @@
                 </button>
             </nav>
 
+            <!-- Mobile Filter Toggle Button -->
+            <button class="mobile-filter-toggle" id="mobile-filter-toggle" onclick="toggleMobileFilter()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46"></polygon>
+                </svg>
+                <span>Filter</span>
+            </button>
+
             <!-- Dashboard Filter Panel -->
             <aside class="filter-panel" id="dashboard-filter-panel">
                 <div class="filter-header">
                     <h3>Filter Rooms</h3>
+                    <button class="filter-close-btn" onclick="toggleMobileFilter()">✕</button>
                 </div>
 
                 <div class="filter-group">

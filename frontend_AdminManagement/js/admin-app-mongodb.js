@@ -73,6 +73,22 @@ function logout() {
     }
 }
 
+// ===== Mobile Filter Toggle =====
+function toggleMobileFilter() {
+    const filterPanel = document.getElementById('dashboard-filter-panel');
+    const toggleBtn = document.getElementById('mobile-filter-toggle');
+    
+    if (filterPanel) {
+        filterPanel.classList.toggle('mobile-visible');
+        
+        // Update button text
+        if (toggleBtn) {
+            const isVisible = filterPanel.classList.contains('mobile-visible');
+            toggleBtn.querySelector('span').textContent = isVisible ? 'Hide Filter' : 'Filter';
+        }
+    }
+}
+
 // ===== Room Management System =====
 class RoomManager {
     constructor() {
