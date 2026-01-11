@@ -23,7 +23,16 @@ load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app)
+
+# Configure CORS for global access
+CORS(app, resources={
+    r"/*": {
+        "origins": "*",
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization", "Accept"],
+        "supports_credentials": False
+    }
+})
 
 # Initialize variables
 client = None
