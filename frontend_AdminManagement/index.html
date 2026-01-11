@@ -108,16 +108,6 @@
                 </div>
 
                 <div class="filter-group">
-                    <label for="dashboard-filter-status">Status</label>
-                    <select id="dashboard-filter-status" onchange="applyDashboardFilters()">
-                        <option value="">All Status</option>
-                        <option value="available">Available</option>
-                        <option value="booked">Booked</option>
-                        <option value="maintenance">Maintenance</option>
-                    </select>
-                </div>
-
-                <div class="filter-group">
                     <label for="dashboard-filter-capacity">Capacity</label>
                     <select id="dashboard-filter-capacity" onchange="applyDashboardFilters()">
                         <option value="">All Capacities</option>
@@ -234,11 +224,6 @@
 
                     <div class="search-filter">
                         <input type="text" id="search-rooms" placeholder="Search rooms by name..." onkeyup="filterRooms()">
-                        <select id="filter-status" onchange="filterRooms()">
-                            <option value="">All Status</option>
-                            <option value="available">Available</option>
-                            <option value="booked">Booked</option>
-                        </select>
                     </div>
 
                     <div class="rooms-table-container">
@@ -248,7 +233,6 @@
                                     <th>Room Name</th>
                                     <th>Price/Night</th>
                                     <th>Capacity</th>
-                                    <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -306,21 +290,6 @@
                             <input type="text" id="room-amenities" required placeholder="Queen Bed, Private Bath, Garden View, Free WiFi">
                         </div>
 
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="room-status">Room Status *</label>
-                                <select id="room-status" required onchange="updateAvailabilityFields()">
-                                    <option value="available">Available</option>
-                                    <option value="booked">Booked</option>
-                                    <option value="maintenance">Maintenance</option>
-                                </select>
-                            </div>
-                            <div class="form-group" id="booked-until-group" style="display:none;">
-                                <label for="booked-until">Booked Until *</label>
-                                <input type="date" id="booked-until">
-                            </div>
-                        </div>
-
                         <div class="form-actions">
                             <button type="submit" class="btn-primary">Save Room</button>
                             <button type="button" class="btn-secondary" onclick="resetForm()">Cancel</button>
@@ -370,21 +339,6 @@
                 <div class="form-group">
                     <label for="edit-room-amenities">Amenities (comma-separated) *</label>
                     <input type="text" id="edit-room-amenities" required>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="edit-room-status">Room Status *</label>
-                        <select id="edit-room-status" required onchange="updateEditAvailabilityFields()">
-                            <option value="available">Available</option>
-                            <option value="booked">Booked</option>
-                            <option value="maintenance">Maintenance</option>
-                        </select>
-                    </div>
-                    <div class="form-group" id="edit-booked-until-group" style="display:none;">
-                        <label for="edit-booked-until">Booked Until *</label>
-                        <input type="date" id="edit-booked-until">
-                    </div>
                 </div>
 
                 <div class="form-actions">

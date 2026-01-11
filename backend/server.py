@@ -108,8 +108,6 @@ def convert_room_for_api(room):
         'persons': room.get('persons', 0),
         'description': room.get('description', ''),
         'amenities': room.get('amenities', []),
-        'status': room.get('bookingStatus', 'available'),
-        'bookingStatus': room.get('bookingStatus', 'available'),
         'bookedIntervals': room.get('bookedIntervals', []),  # Include booking intervals for calendar
         'created_at': str(room.get('created_at', '')) if room.get('created_at') else None,
         'updated_at': str(room.get('updated_at', '')) if room.get('updated_at') else None
@@ -144,11 +142,22 @@ def get_room_stats():
         else:
             rooms = list(rooms_collection.find())
         
+        # Calculate stats based on bookedIntervals instead of bookingStatus
+        from datetime import date
+        today = date.today().isoformat()
+        
+        def has_active_booking(room):
+            intervals = room.get('bookedIntervals', [])
+            for interval in intervals:
+                if interval.get('checkIn') <= today <= interval.get('checkOut'):
+                    return True
+            return False
+        
+        booked_count = len([r for r in rooms if has_active_booking(r)])
         stats = {
             'total': len(rooms),
-            'available': len([r for r in rooms if r.get('bookingStatus') == 'available']),
-            'booked': len([r for r in rooms if r.get('bookingStatus') == 'booked']),
-            'maintenance': len([r for r in rooms if r.get('bookingStatus') == 'maintenance'])
+            'available': len(rooms) - booked_count,
+            'booked': booked_count
         }
         
         return jsonify({
@@ -235,7 +244,7 @@ def add_room():
         data = request.get_json()
         
         # Validate required fields
-        required_fields = ['name', 'price', 'capacity', 'description', 'amenities', 'status']
+        required_fields = ['name', 'price', 'capacity', 'description', 'amenities']
         if not all(field in data for field in required_fields):
             return jsonify({
                 'success': False,
@@ -259,7 +268,7 @@ def add_room():
             'persons': int(data.get('capacity')),
             'description': data.get('description'),
             'amenities': data.get('amenities', []),
-            'bookingStatus': data.get('status', 'available'),
+            'bookedIntervals': [],
             'created_at': datetime.utcnow(),
             'updated_at': datetime.utcnow()
         }
@@ -329,8 +338,6 @@ def update_room(room_id):
                 room['price'] = float(data['price'])
             if 'capacity' in data:
                 room['persons'] = int(data['capacity'])
-            if 'status' in data:
-                room['bookingStatus'] = data['status']
             room['updated_at'] = datetime.utcnow().isoformat()
             
             api_room = convert_room_for_api(room.copy())
@@ -368,11 +375,6 @@ def update_room(room_id):
                 updated_room['description'] = data['description']
             if 'amenities' in data:
                 updated_room['amenities'] = data['amenities']
-            if 'status' in data:
-                updated_room['bookingStatus'] = data['status']
-            if 'bookingStatus' in data:
-                updated_room['bookingStatus'] = data['bookingStatus']
-            
             updated_room['updated_at'] = datetime.utcnow()
             
             # Use ReplaceOne with upsert=True for MongoDB
@@ -476,9 +478,6 @@ def book_room(room_id):
             if 'bookedIntervals' not in room:
                 room['bookedIntervals'] = []
             room['bookedIntervals'].append(new_interval)
-            
-            # Update booking status
-            room['bookingStatus'] = 'booked'
             room['updated_at'] = datetime.now().isoformat()
             
             # Save to JSON
@@ -507,7 +506,6 @@ def book_room(room_id):
                 {
                     '$push': {'bookedIntervals': new_interval},
                     '$set': {
-                        'bookingStatus': 'booked',
                         'updated_at': datetime.now()
                     }
                 }
@@ -569,10 +567,6 @@ def unbook_room(room_id):
                         'error': 'Booking not found'
                     }), 404
                 
-                # Update booking status if no more bookings
-                if len(room['bookedIntervals']) == 0:
-                    room['bookingStatus'] = 'available'
-                
                 room['updated_at'] = datetime.now().isoformat()
                 
                 # Save to JSON
@@ -616,15 +610,6 @@ def unbook_room(room_id):
                     'success': False,
                     'error': 'Booking not found or failed to update'
                 }), 404
-            
-            # Check if there are any remaining bookings
-            updated_room = rooms_collection.find_one(room_id_filter)
-            if not updated_room.get('bookedIntervals') or len(updated_room.get('bookedIntervals', [])) == 0:
-                # No more bookings, set status to available
-                rooms_collection.update_one(
-                    room_id_filter,
-                    {'$set': {'bookingStatus': 'available'}}
-                )
         
         return jsonify({
             'success': True,

@@ -327,7 +327,6 @@ async function updateDashboard() {
 
 // Apply filters and render calendars
 function applyDashboardFilters() {
-    const statusFilter = document.getElementById('dashboard-filter-status')?.value || '';
     const capacityFilter = document.getElementById('dashboard-filter-capacity')?.value || '';
     const priceFilter = document.getElementById('dashboard-filter-price')?.value || '';
     const checkinDate = document.getElementById('dashboard-filter-checkin')?.value || '';
@@ -335,11 +334,6 @@ function applyDashboardFilters() {
     const sortBy = document.getElementById('dashboard-sort')?.value || 'room_id';
     
     let filteredRooms = [...roomManager.getAllRooms()];
-    
-    // Filter by status
-    if (statusFilter) {
-        filteredRooms = filteredRooms.filter(room => room.status === statusFilter);
-    }
     
     // Filter by capacity
     if (capacityFilter) {
@@ -452,14 +446,12 @@ function updateFilterResultsCount(filteredCount, totalCount) {
 
 // Reset all dashboard filters
 function resetDashboardFilters() {
-    const statusSelect = document.getElementById('dashboard-filter-status');
     const capacitySelect = document.getElementById('dashboard-filter-capacity');
     const priceSelect = document.getElementById('dashboard-filter-price');
     const checkinInput = document.getElementById('dashboard-filter-checkin');
     const checkoutInput = document.getElementById('dashboard-filter-checkout');
     const sortSelect = document.getElementById('dashboard-sort');
     
-    if (statusSelect) statusSelect.value = '';
     if (capacitySelect) capacitySelect.value = '';
     if (priceSelect) priceSelect.value = '';
     if (checkinInput) checkinInput.value = '';
@@ -846,7 +838,6 @@ function displayRooms() {
             <td><strong>${room.name}</strong></td>
             <td>$${room.price}</td>
             <td>${room.capacity} guests</td>
-            <td><span class="status-badge ${room.status}">${room.status}</span></td>
             <td>
                 <div class="action-buttons">
                     <button class="btn-icon" onclick="editRoom('${room.room_id}')">Edit</button>
@@ -861,7 +852,6 @@ function displayRooms() {
 // Filter rooms
 function filterRooms() {
     const searchTerm = document.getElementById('search-rooms').value.toLowerCase();
-    const statusFilter = document.getElementById('filter-status').value;
     
     const tableBody = document.getElementById('rooms-list');
     tableBody.innerHTML = '';
@@ -871,8 +861,7 @@ function filterRooms() {
         .sort((a, b) => a.room_id.localeCompare(b.room_id))
         .filter(room => {
             const matchesSearch = room.name.toLowerCase().includes(searchTerm);
-            const matchesStatus = !statusFilter || room.status === statusFilter;
-            return matchesSearch && matchesStatus;
+            return matchesSearch;
         })
         .forEach(room => {
             const row = document.createElement('tr');
@@ -880,7 +869,6 @@ function filterRooms() {
                 <td><strong>${room.name}</strong></td>
                 <td>$${room.price}</td>
                 <td>${room.capacity} guests</td>
-                <td><span class="status-badge ${room.status}">${room.status}</span></td>
                 <td>
                     <div class="action-buttons">
                         <button class="btn-icon" onclick="editRoom('${room.room_id}')">Edit</button>
@@ -917,8 +905,7 @@ async function saveRoom(event) {
         price: parseFloat(document.getElementById('room-price').value),
         capacity: parseInt(document.getElementById('room-capacity').value),
         description: document.getElementById('room-description').value,
-        amenities: document.getElementById('room-amenities').value.split(',').map(a => a.trim()),
-        status: document.getElementById('room-status').value
+        amenities: document.getElementById('room-amenities').value.split(',').map(a => a.trim())
     };
     
     // Add custom ID for new rooms
@@ -955,7 +942,6 @@ function editRoom(id) {
     document.getElementById('edit-room-capacity').value = room.capacity;
     document.getElementById('edit-room-description').value = room.description;
     document.getElementById('edit-room-amenities').value = room.amenities.join(', ');
-    document.getElementById('edit-room-status').value = room.status;
     
     document.getElementById('edit-form').onsubmit = async function(e) {
         e.preventDefault();
@@ -964,8 +950,7 @@ function editRoom(id) {
             price: parseFloat(document.getElementById('edit-room-price').value),
             capacity: parseInt(document.getElementById('edit-room-capacity').value),
             description: document.getElementById('edit-room-description').value,
-            amenities: document.getElementById('edit-room-amenities').value.split(',').map(a => a.trim()),
-            status: document.getElementById('edit-room-status').value
+            amenities: document.getElementById('edit-room-amenities').value.split(',').map(a => a.trim())
         };
         
         try {
@@ -1014,34 +999,7 @@ function resetForm() {
     document.getElementById('booked-until-group').style.display = 'none';
 }
 
-// Update availability fields on status change
-function updateAvailabilityFields() {
-    const status = document.getElementById('room-status').value;
-    const bookedUntilGroup = document.getElementById('booked-until-group');
-    
-    if (status === 'booked') {
-        bookedUntilGroup.style.display = 'block';
-        document.getElementById('booked-until').required = true;
-    } else {
-        bookedUntilGroup.style.display = 'none';
-        document.getElementById('booked-until').required = false;
-    }
-}
-
-function updateEditAvailabilityFields() {
-    const status = document.getElementById('edit-room-status').value;
-    const bookedUntilGroup = document.getElementById('edit-booked-until-group');
-    
-    if (status === 'booked') {
-        bookedUntilGroup.style.display = 'block';
-        document.getElementById('edit-booked-until').required = true;
-    } else {
-        bookedUntilGroup.style.display = 'none';
-        document.getElementById('edit-booked-until').required = false;
-    }
-}
-
-// Quick edit modal for status update from dashboard
+// Quick edit modal for price update from dashboard
 function openQuickEditModal(id) {
     const room = roomManager.getRoomById(id);
     if (!room) return;
@@ -1053,14 +1011,6 @@ function openQuickEditModal(id) {
         <span class="modal-close" onclick="closeQuickEditModal()">&times;</span>
         <h2>Quick Edit: ${room.name}</h2>
         <form id="quick-edit-form" onsubmit="saveQuickEdit(event, '${id}')">
-            <div class="form-group">
-                <label for="quick-status">Room Status *</label>
-                <select id="quick-status" required onchange="updateQuickAvailabilityFields()">
-                    <option value="available" ${room.status === 'available' ? 'selected' : ''}>Available</option>
-                    <option value="booked" ${room.status === 'booked' ? 'selected' : ''}>Booked</option>
-                    <option value="maintenance" ${room.status === 'maintenance' ? 'selected' : ''}>Maintenance</option>
-                </select>
-            </div>
             <div class="form-group">
                 <label for="quick-price">Price per Night (USD)</label>
                 <input type="number" id="quick-price" value="${room.price}" step="0.01">
@@ -1079,17 +1029,15 @@ function openQuickEditModal(id) {
 async function saveQuickEdit(event, id) {
     event.preventDefault();
     
-    const status = document.getElementById('quick-status').value;
     const price = parseFloat(document.getElementById('quick-price').value);
     
     const updatedData = {
-        status: status,
         price: price
     };
     
     try {
         await roomManager.updateRoom(id, updatedData);
-        alert('Room status updated successfully!');
+        alert('Room updated successfully!');
         closeQuickEditModal();
         updateDashboard();
         displayRooms();
@@ -1101,11 +1049,6 @@ async function saveQuickEdit(event, id) {
 // Close quick edit modal
 function closeQuickEditModal() {
     document.getElementById('quick-edit-modal').style.display = 'none';
-}
-
-// Update quick edit availability fields (no longer needed since booked_until is removed)
-function updateQuickAvailabilityFields() {
-    // No action needed - booked_until field has been removed
 }
 
 // Close modal when clicking outside

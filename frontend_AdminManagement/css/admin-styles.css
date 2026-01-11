@@ -1083,30 +1083,6 @@ html, body {
     background: #fafafa;
 }
 
-.status-badge {
-    display: inline-block;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-}
-
-.status-badge.available {
-    background: #c8e6c9;
-    color: var(--success-color);
-}
-
-.status-badge.booked {
-    background: #ffcdd2;
-    color: var(--error-color);
-}
-
-.status-badge.maintenance {
-    background: #fff9c4;
-    color: #f57f17;
-}
-
 .action-buttons {
     display: flex;
     gap: 8px;
@@ -1849,11 +1825,6 @@ html, body {
         -webkit-overflow-scrolling: touch;
     }
 
-    .status-badge {
-        font-size: 10px;
-        padding: 3px 8px;
-    }
-
     .modal-content {
         width: 96%;
         padding: 20px 15px;
@@ -2089,31 +2060,6 @@ html, body {
 
 .room-info-panel .room-details p {
     margin: 3px 0;
-}
-
-.room-info-panel .room-status-badge {
-    display: inline-block;
-    padding: 3px 10px;
-    border-radius: 15px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    margin-top: 8px;
-}
-
-.room-status-badge.available {
-    background: #c8e6c9;
-    color: var(--success-color);
-}
-
-.room-status-badge.booked {
-    background: #ffcdd2;
-    color: var(--error-color);
-}
-
-.room-status-badge.maintenance {
-    background: #fff9c4;
-    color: #f57f17;
 }
 
 .calendar-panel {
@@ -3015,12 +2961,6 @@ html, body {
 
     .room-info-panel .room-details p {
         margin: 0;
-    }
-
-    .room-info-panel .room-status-badge {
-        margin-top: 0;
-        font-size: 8px;
-        padding: 2px 6px;
     }
 
     /* Calendar grid - Full width display */
