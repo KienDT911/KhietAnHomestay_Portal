@@ -11,9 +11,9 @@
             "Garden View",
             "WiFi"
         ],
-        "bookingStatus": "available",
+        "bookingStatus": "booked",
         "booked_until": null,
-        "updated_at": "2026-01-02T12:56:28.068000",
+        "updated_at": "2026-01-11T08:40:00.535000",
         "bookedIntervals": [
             {
                 "checkIn": "2026-01-05",
@@ -21,169 +21,9 @@
             },
             {
                 "checkIn": "2026-01-15",
-                "checkOut": "2026-01-18"
-            },
-            {
-                "checkIn": "2026-02-10",
-                "checkOut": "2026-02-14"
-            }
-        ]
-    },
-    {
-        "_id": "0102",
-        "name": "Family Suite",
-        "persons": 6,
-        "description": "Perfect for families, this suite offers ample space with two bedrooms and a shared living area. Enjoy quality time together while having your own private spaces to retreat to.",
-        "price": 75,
-        "amenities": [
-            "3 Queen Beds",
-            "AC",
-            "Private Bathroom",
-            "TV"
-        ],
-        "bookingStatus": "available",
-        "booked_until": "2026-01-26",
-        "updated_at": "2026-01-02T12:57:28.808000",
-        "bookedIntervals": [
-            {
-                "checkIn": "2026-01-10",
-                "checkOut": "2026-01-14"
-            },
-            {
-                "checkIn": "2026-01-25",
-                "checkOut": "2026-01-30"
-            },
-            {
-                "checkIn": "2026-02-05",
-                "checkOut": "2026-02-08"
-            },
-            {
-                "checkIn": "2026-02-20",
-                "checkOut": "2026-02-25"
-            }
-        ]
-    },
-    {
-        "_id": "0201",
-        "name": "Twin Room",
-        "persons": 4,
-        "description": "Two comfortable twin beds make this room perfect for friends traveling together or family members. Bright and airy with modern amenities for your convenience.",
-        "price": 65,
-        "amenities": [
-            "2 Queen Beds",
-            "WiFi",
-            "AC",
-            "Private Bathroom",
-            "Balcony"
-        ],
-        "bookingStatus": "available",
-        "booked_until": "2026-02-12",
-        "updated_at": "2026-01-02T15:10:30.312000",
-        "bookedIntervals": [
-            {
-                "checkIn": "2026-01-03",
-                "checkOut": "2026-01-06"
-            },
-            {
-                "checkIn": "2026-01-20",
-                "checkOut": "2026-01-23"
-            },
-            {
-                "checkIn": "2026-02-01",
-                "checkOut": "2026-02-04"
-            }
-        ]
-    },
-    {
-        "_id": "0301",
-        "name": "Cozy Single",
-        "persons": 2,
-        "description": "Intimate and affordable, our single room is ideal for solo adventurers. Though compact, it's thoughtfully designed with everything you need for a comfortable stay.",
-        "price": 45,
-        "amenities": [
-            "WiFi",
-            "AC",
-            "Shared Bathroom",
-            "King Bed",
-            "Work Desk",
-            "View of the city"
-        ],
-        "bookingStatus": "available",
-        "bookedIntervals": [
-            {
-                "checkIn": "2026-01-07",
-                "checkOut": "2026-01-10"
-            },
-            {
-                "checkIn": "2026-01-18",
-                "checkOut": "2026-01-21"
-            },
-            {
-                "checkIn": "2026-02-12",
-                "checkOut": "2026-02-15"
-            },
-            {
-                "checkIn": "2026-02-28",
-                "checkOut": "2026-03-03"
-            }
-        ]
-    },
-    {
-        "_id": "0501",
-        "name": "Big Family Suite",
-        "persons": 8,
-        "description": "",
-        "price": 90,
-        "amenities": [
-            "WiFi",
-            "AC",
-            "2 Bathrooms",
-            "3 King Beds",
-            "View of the city"
-        ],
-        "bookingStatus": "available",
-        "bookedIntervals": [
-            {
-                "checkIn": "2026-01-12",
-                "checkOut": "2026-01-17"
-            },
-            {
-                "checkIn": "2026-02-01",
-                "checkOut": "2026-02-07"
-            }
-        ]
-    },
-    {
-        "_id": "0202",
-        "name": "Balcony Family Room",
-        "price": 90.0,
-        "persons": 6,
-        "description": "A spacious, sun-filled balcony room designed for family comfort, featuring cozy seating, warm décor, and plenty of room to relax, gather, and enjoy the view together.",
-        "amenities": [
-            "3 Beds",
-            "Balcony",
-            "Widely"
-        ],
-        "bookingStatus": "available",
-        "booked_until": null,
-        "created_at": "2026-01-02T13:21:18.220000",
-        "updated_at": "2026-01-02T13:21:18.220000"
-    },
-    {
-        "_id": "0203",
-        "name": "Single Corner Room",
-        "price": 30.0,
-        "persons": 2,
-        "description": "A warm, intimate single room designed for quiet comfort, featuring soft lighting, cozy textures, and a calm atmosphere perfect for rest, reflection, and personal retreat.",
-        "amenities": [
-            "1 Queen bed",
-            "Television",
-            "WiFi",
-            "Private Bath"
-        ],
-        "bookingStatus": "available",
-        "booked_until": null,
-        "created_at": "2026-01-07T14:45:38.792000",
-        "updated_at": "2026-01-07T14:45:38.792000"
-    }
-]
+                "checkOut": "2026-01-18",
+                "guestEmail": "",
+                "guestName": "Hue",
+                "guestPhone": "",
+                "notes": "",
+                "updatedAt": 

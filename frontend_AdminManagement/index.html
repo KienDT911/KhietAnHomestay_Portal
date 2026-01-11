@@ -433,26 +433,49 @@
                     </div>
                 </form>
                 
-                <!-- For booked dates -->
+                <!-- For booked dates - Edit booking form -->
                 <div id="unlock-form" style="display:none;">
-                    <div class="booking-summary warning">
+                    <div class="booking-summary">
                         <p><strong>Room:</strong> <span id="unlock-room-name"></span></p>
-                        <p><strong>Guest:</strong> <span id="unlock-guest-name"></span></p>
                         <p><strong>Check-in:</strong> <span id="unlock-checkin-display"></span></p>
                         <p><strong>Check-out:</strong> <span id="unlock-checkout-display"></span></p>
                         <p><strong>Duration:</strong> <span id="unlock-duration"></span> night(s)</p>
                     </div>
                     
-                    <div class="warning-message">
-                        <svg viewBox="0 0 24 24" width="24" height="24">
-                            <path fill="currentColor" d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-                        </svg>
-                        <p>Are you sure you want to cancel this booking? This action cannot be undone.</p>
+                    <div class="form-group">
+                        <label for="edit-guest-name">Guest Name *</label>
+                        <input type="text" id="edit-guest-name" required placeholder="Enter guest full name" oninput="validateEditBookingForm()">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-guest-phone">Guest Phone</label>
+                        <input type="tel" id="edit-guest-phone" placeholder="Enter phone number (optional)">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-guest-email">Guest Email</label>
+                        <input type="email" id="edit-guest-email" placeholder="Enter email address (optional)">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-booking-notes">Booking Notes</label>
+                        <textarea id="edit-booking-notes" rows="3" placeholder="Additional notes or special requests"></textarea>
                     </div>
                     
                     <div class="form-actions">
-                        <button type="button" class="btn-danger" onclick="confirmUnlockRoom()">Cancel Booking</button>
-                        <button type="button" class="btn-secondary" onclick="closeBookingModal()">Keep Booking</button>
+                        <button type="button" id="save-booking-btn" class="btn-primary" onclick="saveBookingChanges()">Save Changes</button>
+                        <button type="button" class="btn-secondary" onclick="closeBookingModal()">Close</button>
+                    </div>
+                    
+                    <div class="cancel-booking-section">
+                        <hr class="divider">
+                        <div class="warning-message compact">
+                            <svg viewBox="0 0 24 24" width="20" height="20">
+                                <path fill="currentColor" d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+                            </svg>
+                            <p>Want to cancel this booking? This action cannot be undone.</p>
+                        </div>
+                        <button type="button" class="btn-danger-outline" onclick="confirmUnlockRoom()">Cancel Booking</button>
                     </div>
                 </div>
             </div>

@@ -2109,15 +2109,14 @@ html, body {
 
 .calendar-panel {
     flex: 1;
-    overflow-x: auto;
-    overflow-y: visible;
+    overflow: visible;
 }
 
 .calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     gap: 4px;
-    min-width: 350px;
+    width: 100%;
     position: relative;
 }
 
@@ -2156,7 +2155,7 @@ html, body {
 }
 
 .calendar-day.available:hover {
-    background: rgba(200, 230, 200, 0.6);
+    background: rgba(36, 72, 36, 0.6);
 }
 
 .calendar-day.booked {
@@ -2511,6 +2510,44 @@ html, body {
     box-shadow: 0 4px 12px rgba(211, 47, 47, 0.3);
 }
 
+.btn-danger-outline {
+    background: transparent;
+    color: var(--error-color);
+    padding: 10px 20px;
+    border: 1px solid var(--error-color);
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-danger-outline:hover {
+    background: var(--error-color);
+    color: white;
+}
+
+.cancel-booking-section {
+    margin-top: 20px;
+    padding-top: 15px;
+}
+
+.cancel-booking-section .divider {
+    border: none;
+    border-top: 1px solid rgba(200, 200, 200, 0.5);
+    margin-bottom: 15px;
+}
+
+.warning-message.compact {
+    padding: 10px 12px;
+    margin-bottom: 12px;
+}
+
+.warning-message.compact p {
+    font-size: 12px;
+    margin: 0;
+}
+
 .calendar-day.selectable {
     cursor: pointer;
     transition: all 0.15s ease;
@@ -2545,7 +2582,7 @@ html, body {
     top: 50%;
     transform: translateY(-50%);
     height: 28px;
-    background: linear-gradient(135deg, #2d5a30 0%, #3d7a40 100%);
+    background: linear-gradient(135deg, #446d47 0%, #406f42 100%);
     border-radius: 14px;
     color: white;
     font-size: 10px;
@@ -2614,6 +2651,21 @@ html, body {
     font-size: 9px;
     color: rgba(45, 90, 48, 0.6);
     z-index: 5;
+}
+
+/* Past booking bar styles - grey */
+.calendar-day.past .booking-bar {
+    background: linear-gradient(135deg, #888 0%, #aaa 100%);
+    box-shadow: 0 2px 8px rgba(100, 100, 100, 0.3);
+}
+
+.calendar-day.past .booking-bar:hover {
+    background: linear-gradient(135deg, #999 0%, #bbb 100%);
+    box-shadow: 0 4px 12px rgba(100, 100, 100, 0.4);
+}
+
+.calendar-day.past.booked .day-number {
+    color: rgba(100, 100, 100, 0.6);
 }
 
 /* ===== Draggable Modal ===== */

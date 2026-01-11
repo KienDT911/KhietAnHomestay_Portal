@@ -1220,29 +1220,117 @@ function findIntervalForDate(intervals, dateStr) {
     });
 }
 
-// Handle click on booked date - show unlock option
+// Handle click on booked date - show edit booking form
 function handleBookedDateClick(room, interval, event) {
-    if (!interval) return;
+    console.log('handleBookedDateClick called:', { room, interval });
+    
+    if (!interval) {
+        console.error('No interval provided');
+        return;
+    }
     
     selectedRoom = room;
     currentBookingInterval = interval;
     lastClickedCell = event?.currentTarget;
     
-    // Populate unlock form
+    console.log('Set currentBookingInterval:', currentBookingInterval);
+    
+    // Populate edit form with booking info
     document.getElementById('unlock-room-name').textContent = room.name;
-    document.getElementById('unlock-guest-name').textContent = interval.guestName || 'N/A';
     document.getElementById('unlock-checkin-display').textContent = formatDateDisplay(interval.checkIn);
     document.getElementById('unlock-checkout-display').textContent = formatDateDisplay(interval.checkOut);
     
     const nights = calculateNights(interval.checkIn, interval.checkOut);
     document.getElementById('unlock-duration').textContent = nights;
     
-    // Show modal with unlock form
-    document.getElementById('booking-modal-title').textContent = 'Cancel Booking';
+    // Populate editable fields
+    document.getElementById('edit-guest-name').value = interval.guestName || '';
+    document.getElementById('edit-guest-phone').value = interval.guestPhone || '';
+    document.getElementById('edit-guest-email').value = interval.guestEmail || '';
+    document.getElementById('edit-booking-notes').value = interval.notes || '';
+    
+    // Show modal with edit form
+    document.getElementById('booking-modal-title').textContent = 'Edit Booking';
     document.getElementById('booking-form').style.display = 'none';
     document.getElementById('unlock-form').style.display = 'block';
     
+    // Hide floating button
+    const floatingBtn = document.getElementById('confirm-selection-btn');
+    if (floatingBtn) {
+        floatingBtn.style.display = 'none';
+    }
+    
     showModalAboveSelection();
+}
+
+// Validate edit booking form
+function validateEditBookingForm() {
+    const guestName = document.getElementById('edit-guest-name').value.trim();
+    const saveBtn = document.getElementById('save-booking-btn');
+    
+    if (saveBtn) {
+        saveBtn.disabled = !guestName;
+    }
+}
+
+// Save booking changes
+async function saveBookingChanges() {
+    if (!selectedRoom || !currentBookingInterval) {
+        console.error('Missing data:', { selectedRoom, currentBookingInterval });
+        alert('Error: No booking selected');
+        return;
+    }
+    
+    const guestName = document.getElementById('edit-guest-name').value.trim();
+    const guestPhone = document.getElementById('edit-guest-phone').value.trim();
+    const guestEmail = document.getElementById('edit-guest-email').value.trim();
+    const notes = document.getElementById('edit-booking-notes').value.trim();
+    
+    if (!guestName) {
+        alert('Please enter guest name');
+        return;
+    }
+    
+    try {
+        const roomId = selectedRoom._id || selectedRoom.room_id || selectedRoom.id;
+        console.log('Updating booking:', {
+            roomId,
+            checkIn: currentBookingInterval.checkIn,
+            checkOut: currentBookingInterval.checkOut,
+            guestName
+        });
+        
+        const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/update-booking`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                checkIn: currentBookingInterval.checkIn,
+                checkOut: currentBookingInterval.checkOut,
+                guestName: guestName,
+                guestPhone: guestPhone,
+                guestEmail: guestEmail,
+                notes: notes
+            })
+        });
+        
+        console.log('Response status:', response.status);
+        const result = await response.json();
+        console.log('Response data:', result);
+        
+        if (response.ok || result.success) {
+            closeBookingModal();
+            await roomManager.loadRooms();
+            filterRooms();
+            alert('Booking updated successfully!');
+        } else {
+            alert('Failed to update booking: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error updating booking:', error);
+        alert('Failed to update booking: ' + error.message);
+    }
 }
 
 // Handle date selection for booking - toggle individual days

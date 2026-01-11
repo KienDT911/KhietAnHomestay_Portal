@@ -611,6 +611,109 @@ def unbook_room(room_id):
             'error': str(e)
         }), 500
 
+@app.route('/backend/api/admin/rooms/<room_id>/update-booking', methods=['PUT'])
+def update_booking(room_id):
+    """Update booking information for a room"""
+    try:
+        data = request.json
+        
+        # Validate required fields
+        if not data.get('checkIn') or not data.get('checkOut') or not data.get('guestName'):
+            return jsonify({
+                'success': False,
+                'error': 'Missing required fields: checkIn, checkOut, guestName'
+            }), 400
+        
+        check_in = data['checkIn']
+        check_out = data['checkOut']
+        guest_name = data['guestName']
+        guest_phone = data.get('guestPhone', '')
+        guest_email = data.get('guestEmail', '')
+        notes = data.get('notes', '')
+        
+        if rooms_collection is None:
+            # Fallback mode
+            room = next((r for r in fallback_rooms if r.get('_id') == room_id), None)
+            if not room:
+                return jsonify({
+                    'success': False,
+                    'error': 'Room not found'
+                }), 404
+            
+            # Find and update booking interval
+            if 'bookedIntervals' in room:
+                for interval in room['bookedIntervals']:
+                    if interval['checkIn'] == check_in and interval['checkOut'] == check_out:
+                        interval['guestName'] = guest_name
+                        interval['guestPhone'] = guest_phone
+                        interval['guestEmail'] = guest_email
+                        interval['notes'] = notes
+                        interval['updatedAt'] = datetime.now().isoformat()
+                        break
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Booking not found'
+                    }), 404
+                
+                room['updated_at'] = datetime.now().isoformat()
+                
+                # Save to JSON
+                with open(json_file_path, 'w') as f:
+                    json.dump(fallback_rooms, f, indent=2)
+        else:
+            # MongoDB mode
+            room = rooms_collection.find_one({'_id': room_id})
+            if not room:
+                try:
+                    obj_id = ObjectId(room_id)
+                    room = rooms_collection.find_one({'_id': obj_id})
+                    room_id_filter = {'_id': obj_id}
+                except:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Room not found'
+                    }), 404
+            else:
+                room_id_filter = {'_id': room_id}
+            
+            # Update the specific booking interval
+            result = rooms_collection.update_one(
+                {
+                    **room_id_filter,
+                    'bookedIntervals.checkIn': check_in,
+                    'bookedIntervals.checkOut': check_out
+                },
+                {
+                    '$set': {
+                        'bookedIntervals.$.guestName': guest_name,
+                        'bookedIntervals.$.guestPhone': guest_phone,
+                        'bookedIntervals.$.guestEmail': guest_email,
+                        'bookedIntervals.$.notes': notes,
+                        'bookedIntervals.$.updatedAt': datetime.now(),
+                        'updated_at': datetime.now()
+                    }
+                }
+            )
+            
+            # Check matched_count instead of modified_count
+            # modified_count can be 0 if data is the same, but matched_count shows if booking was found
+            if result.matched_count == 0:
+                return jsonify({
+                    'success': False,
+                    'error': 'Booking not found'
+                }), 404
+        
+        return jsonify({
+            'success': True,
+            'message': 'Booking updated successfully'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 # ===== Health Check =====
 @app.route('/backend/health', methods=['GET'])
 def health_check():
