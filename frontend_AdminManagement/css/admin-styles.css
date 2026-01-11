@@ -2138,10 +2138,11 @@ html, body {
     border-radius: 4px;
     transition: all 0.2s ease;
     position: relative;
-    min-height: 36px;
+    min-height: 52px;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
+    padding-top: 4px;
 }
 
 .calendar-day.empty {
@@ -2160,7 +2161,7 @@ html, body {
 
 .calendar-day.booked {
     background: rgba(90, 56, 45, 0.1);
-    color: transparent;
+    color: var(--dark-green);
     text-decoration: none;
     cursor: pointer;
     position: relative;
@@ -2175,7 +2176,7 @@ html, body {
 
 .calendar-day.past.booked {
     background: rgba(45, 90, 48, 0.05);
-    color: transparent;
+    color: #999;
     text-decoration: none;
     cursor: pointer;
     overflow: visible;
@@ -2266,9 +2267,9 @@ html, body {
 
 @media (max-width: 500px) {
     .calendar-day {
-        padding: 6px 2px;
+        padding: 4px 2px;
         font-size: 11px;
-        min-height: 30px;
+        min-height: 46px;
     }
     
     .calendar-header {
@@ -2579,8 +2580,9 @@ html, body {
 /* ===== Booking Bar Styles ===== */
 .booking-bar {
     position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
+    top: auto;
+    bottom: 4px;
+    transform: none;
     height: 28px;
     background: linear-gradient(135deg, #446d47 0%, #406f42 100%);
     border-radius: 14px;
@@ -2604,7 +2606,7 @@ html, body {
 .booking-bar:hover {
     background: linear-gradient(135deg, #3d7a40 0%, #4d9a50 100%);
     box-shadow: 0 4px 12px rgba(45, 90, 48, 0.5);
-    transform: translateY(-50%) scale(1.02);
+    transform: scale(1.02);
 }
 
 .booking-bar-start {
@@ -2645,12 +2647,13 @@ html, body {
 }
 
 .calendar-day.booked .day-number {
-    position: absolute;
-    top: 2px;
-    left: 4px;
-    font-size: 9px;
-    color: rgba(45, 90, 48, 0.6);
+    position: relative;
+    top: 0;
+    left: 0;
+    font-size: 12px;
+    color: rgba(45, 90, 48, 0.8);
     z-index: 5;
+    font-weight: 500;
 }
 
 /* Past booking bar styles - grey */

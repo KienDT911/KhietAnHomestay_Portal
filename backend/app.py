@@ -9,6 +9,15 @@ import os
 import json
 from datetime import datetime
 
+# Custom JSON encoder to handle datetime and ObjectId
+class MongoJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if isinstance(obj, ObjectId):
+            return str(obj)
+        return super().default(obj)
+
 # Load environment variables
 load_dotenv()
 
@@ -44,18 +53,9 @@ try:
     # Sync MongoDB data to local JSON file for backup/fallback
     try:
         rooms_from_db = list(rooms_collection.find())
-        # Convert ObjectId to string for JSON serialization
-        for room in rooms_from_db:
-            if isinstance(room.get('_id'), ObjectId):
-                room['_id'] = str(room['_id'])
-            # Convert datetime objects to ISO format strings
-            if isinstance(room.get('created_at'), datetime):
-                room['created_at'] = room['created_at'].isoformat()
-            if isinstance(room.get('updated_at'), datetime):
-                room['updated_at'] = room['updated_at'].isoformat()
         
         with open(json_file_path, 'w', encoding='utf-8') as file:
-            json.dump(rooms_from_db, file, indent=4, ensure_ascii=False)
+            json.dump(rooms_from_db, file, indent=4, ensure_ascii=False, cls=MongoJSONEncoder)
         print(f"✓ Synced {len(rooms_from_db)} rooms to rooms_data.json")
     except Exception as sync_error:
         print(f"⚠️  Could not sync to JSON: {sync_error}")
