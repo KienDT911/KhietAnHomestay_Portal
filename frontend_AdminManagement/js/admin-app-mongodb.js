@@ -1,5 +1,5 @@
 // ===== Configuration =====
-const API_BASE_URL = 'http://localhost:5000/backend/api/admin';
+const API_BASE_URL = 'https://khiet-an-homestay-portal-dvhu.vercel.app/backend/api/admin';
 
 // ===== Authentication =====
 const VALID_CREDENTIALS = {
