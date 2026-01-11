@@ -107,6 +107,22 @@ def convert_room_for_api(room):
     }
     return api_room
 
+# ===== Root & Info Endpoints =====
+
+@app.route('/', methods=['GET'])
+def root():
+    """Root endpoint - API info"""
+    return jsonify({
+        'success': True,
+        'message': 'KhietAn Homestay API is running',
+        'version': '1.0.0',
+        'endpoints': {
+            'health': '/backend/health',
+            'rooms': '/backend/api/admin/rooms',
+            'room_stats': '/backend/api/admin/rooms/stats'
+        }
+    }), 200
+
 # ===== Room API Endpoints =====
 
 @app.route('/backend/api/admin/rooms/stats', methods=['GET'])
