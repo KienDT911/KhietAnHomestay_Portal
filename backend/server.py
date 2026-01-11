@@ -755,5 +755,8 @@ def internal_error(error):
         'error': 'Internal server error'
     }), 500
 
+# For Vercel deployment - expose the app
+app = app
+
 if __name__ == '__main__':
     app.run(debug=True, host='localhost', port=5000)
