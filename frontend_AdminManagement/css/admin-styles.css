@@ -2830,21 +2830,52 @@ html, body {
         height: 10px;
     }
 
-    /* Calendar controls - Full width */
+    /* Calendar controls - Full width and visible */
     .calendar-controls {
-        padding: 8px 10px !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap;
-        gap: 8px;
-        justify-content: space-between;
+        padding: 10px 12px !important;
+        margin-left: 0 !important;
+        flex-direction: column !important;
+        gap: 10px;
         align-items: center;
         width: 100%;
+        position: relative;
+        z-index: 10;
     }
 
     .calendar-controls h3 {
         font-size: 14px;
         margin: 0;
         white-space: nowrap;
+        text-align: center;
+        width: 100%;
+    }
+
+    /* Month selector - ensure visibility */
+    .month-selector {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+        flex-wrap: nowrap;
+    }
+
+    .month-selector #current-month-display {
+        font-size: 14px;
+        min-width: 110px;
+        text-align: center;
+    }
+
+    .btn-nav {
+        padding: 8px 14px !important;
+        font-size: 12px !important;
+        white-space: nowrap;
+        flex-shrink: 0;
+        background: var(--sage-green);
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
     }
 
     .calendar-nav-btn {
