@@ -1038,6 +1038,15 @@ function editRoom(id) {
     
     document.getElementById('edit-form').onsubmit = async function(e) {
         e.preventDefault();
+        
+        // Prevent multiple clicks
+        const submitButton = document.getElementById('edit-submit-btn');
+        if (submitButton.disabled) return;
+        
+        const originalText = submitButton.textContent;
+        submitButton.disabled = true;
+        submitButton.textContent = 'Updating...';
+        
         const updatedData = {
             name: document.getElementById('edit-room-name').value,
             price: parseFloat(document.getElementById('edit-room-price').value),
@@ -1054,6 +1063,10 @@ function editRoom(id) {
             updateDashboard();
         } catch (error) {
             alert('Error updating room: ' + error.message);
+        } finally {
+            // Re-enable button after operation completes
+            submitButton.disabled = false;
+            submitButton.textContent = originalText;
         }
     };
     
