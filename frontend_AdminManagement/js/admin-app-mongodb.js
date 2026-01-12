@@ -2,10 +2,21 @@
 const API_BASE_URL = 'https://khietanportal.vercel.app/backend/api/admin';
 
 // ===== Authentication =====
-const VALID_CREDENTIALS = {
-    username: 'trungkien',
-    password: '123456'
-};
+// User accounts with roles: 'admin' has full access, 'manager' cannot access room management
+const VALID_USERS = [
+    {
+        username: 'trungkien',
+        password: '123456',
+        role: 'admin',
+        displayName: 'Trung Kiên (Admin)'
+    },
+    {
+        username: 'khietanquanly',
+        password: '123123',
+        role: 'manager',
+        displayName: 'Khiết An (Manager)'
+    }
+];
 
 // Check if user is logged in on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -25,14 +36,16 @@ function handleLogin(event) {
     const password = document.getElementById('password').value;
     const errorElement = document.getElementById('login-error');
     
-    console.log('Login attempt:', { username, password }); // Debug log
-    console.log('Expected:', VALID_CREDENTIALS); // Debug log
+    console.log('Login attempt:', { username }); // Debug log
     
-    // Validate credentials
-    if (username === VALID_CREDENTIALS.username && password === VALID_CREDENTIALS.password) {
-        console.log('Login successful!'); // Debug log
+    // Find matching user
+    const user = VALID_USERS.find(u => u.username === username && u.password === password);
+    
+    if (user) {
+        console.log('Login successful! Role:', user.role); // Debug log
         sessionStorage.setItem('adminLoggedIn', 'true');
-        sessionStorage.setItem('adminUsername', username);
+        sessionStorage.setItem('adminUsername', user.displayName);
+        sessionStorage.setItem('adminRole', user.role);
         showDashboard();
         errorElement.textContent = '';
     } else {
@@ -55,6 +68,9 @@ function showDashboard() {
     const username = sessionStorage.getItem('adminUsername') || 'Administrator';
     document.getElementById('logged-user').textContent = username;
     
+    // Apply role-based access control
+    applyRoleBasedAccess();
+    
     // Initialize sidebar (always starts collapsed)
     initSidebar();
     
@@ -62,11 +78,38 @@ function showDashboard() {
     roomManager.loadRooms();
 }
 
+// Apply role-based access control to UI elements
+function applyRoleBasedAccess() {
+    const role = sessionStorage.getItem('adminRole') || 'manager';
+    const isAdmin = role === 'admin';
+    
+    // Get sidebar menu items for Manage Rooms and Add New Room
+    const sidebarMenu = document.querySelector('.sidebar-menu');
+    const menuItems = sidebarMenu.querySelectorAll('li');
+    
+    // Menu items: [0] = Dashboard, [1] = Manage Rooms, [2] = Add New Room
+    if (menuItems[1]) {
+        menuItems[1].style.display = isAdmin ? 'block' : 'none';
+    }
+    if (menuItems[2]) {
+        menuItems[2].style.display = isAdmin ? 'block' : 'none';
+    }
+    
+    // Also hide the "+ Add New Room" button in Manage Rooms section header
+    const addRoomBtn = document.querySelector('#rooms .section-header .btn-primary');
+    if (addRoomBtn) {
+        addRoomBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+    }
+    
+    console.log('Role-based access applied. Role:', role, 'Is Admin:', isAdmin);
+}
+
 // Logout
 function logout() {
     if (confirm('Are you sure you want to logout?')) {
         sessionStorage.removeItem('adminLoggedIn');
         sessionStorage.removeItem('adminUsername');
+        sessionStorage.removeItem('adminRole');
         document.getElementById('login-form').reset();
         document.getElementById('login-error').textContent = '';
         showLoginPage();
@@ -295,6 +338,15 @@ function initSidebar() {
 
 // Switch tabs
 function switchTab(tabName) {
+    // Check role-based access for restricted tabs
+    const role = sessionStorage.getItem('adminRole') || 'manager';
+    const restrictedTabs = ['rooms', 'add-room'];
+    
+    if (role !== 'admin' && restrictedTabs.includes(tabName)) {
+        alert('Access denied. Only administrators can access this section.');
+        return;
+    }
+    
     // Hide all tabs
     document.querySelectorAll('.tab-content').forEach(tab => {
         tab.classList.remove('active');
