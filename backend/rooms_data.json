@@ -1,19 +1,17 @@
 [
     {
         "_id": "0101",
-        "name": "Deluxe Room",
+        "name": "Tài",
         "persons": 2,
         "description": "Spacious room with a beautiful garden view, perfect for couples or solo travelers seeking peace. Features a comfortable queen-size bed, private bathroom, and a cozy reading nook.",
-        "price": 65,
+        "price": 550,
         "amenities": [
             "Queen Bed",
             "Private Bath",
             "Garden View",
             "WiFi"
         ],
-        "bookingStatus": "booked",
-        "booked_until": null,
-        "updated_at": "2026-01-11T08:40:00.535000",
+        "updated_at": "2026-01-12T00:49:42.694000",
         "bookedIntervals": [
             {
                 "checkIn": "2026-01-05",
@@ -33,16 +31,6 @@
                 "checkOut": "2026-02-14"
             },
             {
-                "checkIn": "2026-01-27",
-                "checkOut": "2026-01-30",
-                "guestName": "Trung Kien",
-                "guestPhone": "",
-                "guestEmail": "",
-                "notes": "",
-                "createdAt": "2026-01-10T21:55:42.594653",
-                "updatedAt": "2026-01-11T08:40:00.535000"
-            },
-            {
                 "checkIn": "2026-01-30",
                 "checkOut": "2026-02-03",
                 "guestName": "Tam Nhat",
@@ -60,23 +48,49 @@
                 "guestEmail": "",
                 "notes": "",
                 "createdAt": "2026-01-10T22:28:36.168448"
+            },
+            {
+                "checkIn": "2026-01-19",
+                "checkOut": "2026-01-22",
+                "guestName": "Dang Trung Kien",
+                "guestPhone": "0911666888",
+                "guestEmail": "",
+                "notes": "",
+                "createdAt": "2026-01-11T09:03:48.230366",
+                "updatedAt": "2026-01-11T10:05:36.228000"
+            },
+            {
+                "checkIn": "2026-01-11",
+                "checkOut": "2026-01-11",
+                "guestName": "Demo booking",
+                "guestPhone": "0826824477",
+                "guestEmail": "quangnhat.nydo@gmail.com",
+                "notes": "demo booking",
+                "createdAt": "2026-01-12T00:48:12.133694"
+            },
+            {
+                "checkIn": "2026-01-11",
+                "checkOut": "2026-01-11",
+                "guestName": "Demo booking",
+                "guestPhone": "0826824477",
+                "guestEmail": "quangnhat.nydo@gmail.com",
+                "notes": "demo booking",
+                "createdAt": "2026-01-12T00:49:42.484789"
             }
         ]
     },
     {
         "_id": "0102",
-        "name": "Family Suite",
-        "persons": 6,
+        "name": "Lộc",
+        "persons": 2,
         "description": "Perfect for families, this suite offers ample space with two bedrooms and a shared living area. Enjoy quality time together while having your own private spaces to retreat to.",
-        "price": 75,
+        "price": 550,
         "amenities": [
             "3 Queen Beds",
             "AC",
             "Private Bathroom",
             "TV"
         ],
-        "bookingStatus": "available",
-        "booked_until": "2026-01-26",
         "updated_at": "2026-01-10T23:58:52.503000",
         "bookedIntervals": [
             {
@@ -109,10 +123,10 @@
     },
     {
         "_id": "0201",
-        "name": "Twin Room",
+        "name": "Phát",
         "persons": 4,
         "description": "Two comfortable twin beds make this room perfect for friends traveling together or family members. Bright and airy with modern amenities for your convenience.",
-        "price": 65,
+        "price": 800,
         "amenities": [
             "2 Queen Beds",
             "WiFi",
@@ -120,8 +134,6 @@
             "Private Bathroom",
             "Balcony"
         ],
-        "bookingStatus": "booked",
-        "booked_until": "2026-02-12",
         "updated_at": "2026-01-11T08:43:40.161000",
         "bookedIntervals": [
             {
@@ -155,10 +167,10 @@
     },
     {
         "_id": "0301",
-        "name": "Cozy Single",
-        "persons": 2,
+        "name": "Lotus",
+        "persons": 6,
         "description": "Intimate and affordable, our single room is ideal for solo adventurers. Though compact, it's thoughtfully designed with everything you need for a comfortable stay.",
-        "price": 45,
+        "price": 900,
         "amenities": [
             "WiFi",
             "AC",
@@ -167,7 +179,6 @@
             "Work Desk",
             "View of the city"
         ],
-        "bookingStatus": "available",
         "bookedIntervals": [
             {
                 "checkIn": "2026-01-07",
@@ -200,7 +211,6 @@
             "3 King Beds",
             "View of the city"
         ],
-        "bookingStatus": "available",
         "bookedIntervals": [
             {
                 "checkIn": "2026-01-12",
@@ -214,14 +224,41 @@
             {
                 "checkIn": "2026-02-01",
                 "checkOut": "2026-02-07"
+            },
+            {
+                "checkIn": "2026-01-21",
+                "checkOut": "2026-01-23",
+                "guestName": "Thanh Phú",
+                "guestPhone": "",
+                "guestEmail": "",
+                "notes": "",
+                "createdAt": "2026-01-12T04:30:54.652033"
+            },
+            {
+                "checkIn": "2026-01-26",
+                "checkOut": "2026-01-29",
+                "guestName": "Việt Anh",
+                "guestPhone": "",
+                "guestEmail": "",
+                "notes": "",
+                "createdAt": "2026-01-12T04:35:21.615937"
+            },
+            {
+                "checkIn": "2026-01-30",
+                "checkOut": "2026-02-01",
+                "guestName": "Minh Quân",
+                "guestPhone": "",
+                "guestEmail": "",
+                "notes": "",
+                "createdAt": "2026-01-12T04:35:40.070498"
             }
         ],
-        "updated_at": "2026-01-11T08:28:43.285000"
+        "updated_at": "2026-01-12T04:35:40.280000"
     },
     {
         "_id": "0202",
-        "name": "Balcony Family Room",
-        "price": 90.0,
+        "name": "An",
+        "price": 550.0,
         "persons": 6,
         "description": "A spacious, sun-filled balcony room designed for family comfort, featuring cozy seating, warm décor, and plenty of room to relax, gather, and enjoy the view together.",
         "amenities": [
@@ -229,10 +266,8 @@
             "Balcony",
             "Widely"
         ],
-        "bookingStatus": "booked",
-        "booked_until": null,
         "created_at": "2026-01-02T13:21:18.220000",
-        "updated_at": "2026-01-10T22:52:05.063000",
+        "updated_at": "2026-01-12T02:20:33.831000",
         "bookedIntervals": [
             {
                 "checkIn": "2026-01-21",
@@ -242,13 +277,22 @@
                 "guestEmail": "",
                 "notes": "",
                 "createdAt": "2026-01-10T22:52:05.018243"
+            },
+            {
+                "checkIn": "2026-01-13",
+                "checkOut": "2026-01-16",
+                "guestName": "Xuân Đạt",
+                "guestPhone": "",
+                "guestEmail": "",
+                "notes": "",
+                "createdAt": "2026-01-12T01:37:42.065101"
             }
         ]
     },
     {
         "_id": "0203",
-        "name": "Single Corner Room",
-        "price": 30.0,
+        "name": "Khiết",
+        "price": 550.0,
         "persons": 2,
         "description": "A warm, intimate single room designed for quiet comfort, featuring soft lighting, cozy textures, and a calm atmosphere perfect for rest, reflection, and personal retreat.",
         "amenities": [
@@ -257,8 +301,6 @@
             "WiFi",
             "Private Bath"
         ],
-        "bookingStatus": "available",
-        "booked_until": null,
         "created_at": "2026-01-07T14:45:38.792000",
         "updated_at": "2026-01-07T14:45:38.792000"
     }

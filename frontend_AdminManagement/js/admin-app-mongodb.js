@@ -55,8 +55,8 @@ function showDashboard() {
     const username = sessionStorage.getItem('adminUsername') || 'Administrator';
     document.getElementById('logged-user').textContent = username;
     
-    // Restore sidebar state
-    restoreSidebarState();
+    // Initialize sidebar (always starts collapsed)
+    initSidebar();
     
     // Initialize dashboard
     roomManager.loadRooms();
@@ -234,31 +234,79 @@ let currentCalendarMonth = new Date().getMonth(); // 0-indexed
 
 // ===== UI Functions =====
 
+// Sidebar auto-hide timer
+let sidebarAutoHideTimer = null;
+
 // Toggle sidebar collapsed state
 function toggleSidebar() {
     const sidebar = document.getElementById('admin-sidebar');
     sidebar.classList.toggle('collapsed');
     
-    // Save state to sessionStorage
-    sessionStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+    // Clear any existing auto-hide timer
+    if (sidebarAutoHideTimer) {
+        clearTimeout(sidebarAutoHideTimer);
+        sidebarAutoHideTimer = null;
+    }
+    
+    // If sidebar is now expanded, start auto-hide timer
+    if (!sidebar.classList.contains('collapsed')) {
+        startSidebarAutoHide();
+    }
 }
 
-// Collapse sidebar (called when tab is selected)
+// Start auto-hide timer for sidebar (3 seconds of inactivity)
+function startSidebarAutoHide() {
+    if (sidebarAutoHideTimer) {
+        clearTimeout(sidebarAutoHideTimer);
+    }
+    sidebarAutoHideTimer = setTimeout(() => {
+        collapseSidebar();
+    }, 3000); // Auto-hide after 3 seconds
+}
+
+// Reset auto-hide timer when user interacts with sidebar
+function resetSidebarAutoHide() {
+    const sidebar = document.getElementById('admin-sidebar');
+    if (sidebar && !sidebar.classList.contains('collapsed')) {
+        startSidebarAutoHide();
+    }
+}
+
+// Collapse sidebar (called when tab is selected or auto-hide triggers)
 function collapseSidebar() {
     const sidebar = document.getElementById('admin-sidebar');
     if (sidebar && !sidebar.classList.contains('collapsed')) {
         sidebar.classList.add('collapsed');
-        sessionStorage.setItem('sidebarCollapsed', 'true');
+    }
+    // Clear timer
+    if (sidebarAutoHideTimer) {
+        clearTimeout(sidebarAutoHideTimer);
+        sidebarAutoHideTimer = null;
     }
 }
 
-// Restore sidebar state from session storage
-function restoreSidebarState() {
+// Initialize sidebar - always start collapsed
+function initSidebar() {
     const sidebar = document.getElementById('admin-sidebar');
-    const isCollapsed = sessionStorage.getItem('sidebarCollapsed');
-    
-    if (isCollapsed === 'true' && sidebar) {
+    if (sidebar) {
+        // Always start collapsed
         sidebar.classList.add('collapsed');
+        
+        // Add mouse enter/leave listeners for auto-hide
+        sidebar.addEventListener('mouseenter', () => {
+            // Reset timer when mouse enters
+            if (sidebarAutoHideTimer) {
+                clearTimeout(sidebarAutoHideTimer);
+                sidebarAutoHideTimer = null;
+            }
+        });
+        
+        sidebar.addEventListener('mouseleave', () => {
+            // Start auto-hide when mouse leaves (if expanded)
+            if (!sidebar.classList.contains('collapsed')) {
+                startSidebarAutoHide();
+            }
+        });
     }
 }
 
@@ -1478,10 +1526,13 @@ function showBookingFormMultiple(room, checkIn, checkOut, selectedDatesList) {
     document.getElementById('guest-email').value = '';
     document.getElementById('booking-notes').value = '';
     
-    // Reset confirm button to disabled state
+    // Reset booking flag and button state for new booking
+    isBookingInProgress = false;
     const confirmBtn = document.getElementById('confirm-booking-btn');
     if (confirmBtn) {
-        confirmBtn.disabled = true;
+        confirmBtn.disabled = true;  // Will be enabled when guest name is entered
+        confirmBtn.textContent = 'Confirm Booking';
+        confirmBtn.style.pointerEvents = 'auto';
     }
     
     // Show modal with booking form
