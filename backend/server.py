@@ -454,11 +454,34 @@ def book_room(room_id):
                 'error': 'Missing required fields: checkIn, checkOut, guestName'
             }), 400
         
+        check_in = data['checkIn']
+        check_out = data['checkOut']
+        guest_name = data['guestName']
+        
+        # Helper function to check for duplicate/overlapping bookings
+        def has_duplicate_booking(existing_intervals):
+            if not existing_intervals:
+                return False
+            for interval in existing_intervals:
+                # Check for exact duplicate (same dates and guest)
+                if (interval.get('checkIn') == check_in and 
+                    interval.get('checkOut') == check_out and
+                    interval.get('guestName') == guest_name):
+                    return True
+                # Check for overlapping dates
+                existing_start = interval.get('checkIn', '')
+                existing_end = interval.get('checkOut', '')
+                if existing_start and existing_end:
+                    # Dates overlap if: new_start < existing_end AND new_end > existing_start
+                    if check_in < existing_end and check_out > existing_start:
+                        return True
+            return False
+        
         # Create booking interval
         new_interval = {
-            'checkIn': data['checkIn'],
-            'checkOut': data['checkOut'],
-            'guestName': data['guestName'],
+            'checkIn': check_in,
+            'checkOut': check_out,
+            'guestName': guest_name,
             'guestPhone': data.get('guestPhone', ''),
             'guestEmail': data.get('guestEmail', ''),
             'notes': data.get('notes', ''),
@@ -473,6 +496,13 @@ def book_room(room_id):
                     'success': False,
                     'error': 'Room not found'
                 }), 404
+            
+            # Check for duplicate/overlapping bookings
+            if has_duplicate_booking(room.get('bookedIntervals', [])):
+                return jsonify({
+                    'success': False,
+                    'error': 'Booking already exists or dates overlap with existing booking'
+                }), 409
             
             # Add to bookedIntervals
             if 'bookedIntervals' not in room:
@@ -499,6 +529,13 @@ def book_room(room_id):
                     }), 404
             else:
                 room_id_filter = {'_id': room_id}
+            
+            # Check for duplicate/overlapping bookings
+            if has_duplicate_booking(room.get('bookedIntervals', [])):
+                return jsonify({
+                    'success': False,
+                    'error': 'Booking already exists or dates overlap with existing booking'
+                }), 409
             
             # Add booking interval
             result = rooms_collection.update_one(

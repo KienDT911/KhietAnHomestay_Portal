@@ -1233,7 +1233,15 @@ function validateEditBookingForm() {
 }
 
 // Save booking changes
+let isSavingBooking = false;
+
 async function saveBookingChanges() {
+    // Prevent double submission
+    if (isSavingBooking) {
+        console.log('Save already in progress, ignoring click');
+        return;
+    }
+    
     if (!selectedRoom || !currentBookingInterval) {
         console.error('Missing data:', { selectedRoom, currentBookingInterval });
         alert('Error: No booking selected');
@@ -1248,6 +1256,14 @@ async function saveBookingChanges() {
     if (!guestName) {
         alert('Please enter guest name');
         return;
+    }
+    
+    // Set flag and disable button
+    isSavingBooking = true;
+    const saveBtn = document.querySelector('.booking-modal-content .btn-primary');
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
     }
     
     try {
@@ -1289,6 +1305,14 @@ async function saveBookingChanges() {
     } catch (error) {
         console.error('Error updating booking:', error);
         alert('Failed to update booking: ' + error.message);
+    } finally {
+        // Reset flag and button
+        isSavingBooking = false;
+        const saveBtn = document.querySelector('.booking-modal-content .btn-primary');
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Changes';
+        }
     }
 }
 
@@ -1468,11 +1492,25 @@ function showBookingFormMultiple(room, checkIn, checkOut, selectedDatesList) {
     // Position modal above selection
     showModalAboveSelection();
     
-    // Set up form submission
+    // Reset booking flag when showing form
+    isBookingInProgress = false;
+    
+    // Set up form submission with double-submit prevention
     const form = document.getElementById('booking-form');
     form.onsubmit = (e) => {
         e.preventDefault();
+        // Disable submit button immediately on form submit
+        const submitBtn = document.getElementById('confirm-booking-btn');
+        if (submitBtn && submitBtn.disabled) {
+            console.log('Button already disabled, ignoring form submit');
+            return false;
+        }
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Processing...';
+        }
         confirmBookingMultiple(checkIn, checkOut);
+        return false;
     };
 }
 
@@ -1600,6 +1638,12 @@ function formatDateDisplay(date) {
 
 // Confirm booking
 async function confirmBooking() {
+    // Check if already in progress
+    if (isBookingInProgress) {
+        console.log('Booking already in progress, ignoring click');
+        return;
+    }
+    
     // Redirect to new function
     const sortedDates = Array.from(selectedDates).sort();
     if (sortedDates.length === 0) {
@@ -1612,28 +1656,48 @@ async function confirmBooking() {
 }
 
 // Confirm booking with multiple dates
+let isBookingInProgress = false;
+
 async function confirmBookingMultiple(checkIn, checkOut) {
-    if (!selectedRoom || selectedDates.size === 0) {
-        alert('Please select dates first');
+    // Prevent double submission - CHECK AND SET FLAG IMMEDIATELY
+    if (isBookingInProgress) {
+        console.log('Booking already in progress, ignoring click');
         return;
     }
     
-    const guestName = document.getElementById('guest-name').value.trim();
-    if (!guestName) {
-        alert('Guest name is required');
-        return;
-    }
+    // Set flag IMMEDIATELY before any other code runs
+    isBookingInProgress = true;
+    console.log('Starting booking process, flag set to true');
     
-    const bookingData = {
-        checkIn: checkIn,
-        checkOut: checkOut,
-        guestName: guestName,
-        guestPhone: document.getElementById('guest-phone').value.trim(),
-        guestEmail: document.getElementById('guest-email').value.trim(),
-        notes: document.getElementById('booking-notes').value.trim()
-    };
+    // Get and disable button immediately - use the specific button ID
+    const confirmBtn = document.getElementById('confirm-booking-btn');
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Processing...';
+        confirmBtn.style.pointerEvents = 'none';
+    }
     
     try {
+        if (!selectedRoom || selectedDates.size === 0) {
+            alert('Please select dates first');
+            return;
+        }
+        
+        const guestName = document.getElementById('guest-name').value.trim();
+        if (!guestName) {
+            alert('Guest name is required');
+            return;
+        }
+        
+        const bookingData = {
+            checkIn: checkIn,
+            checkOut: checkOut,
+            guestName: guestName,
+            guestPhone: document.getElementById('guest-phone').value.trim(),
+            guestEmail: document.getElementById('guest-email').value.trim(),
+            notes: document.getElementById('booking-notes').value.trim()
+        };
+        
         const roomId = selectedRoom.room_id || selectedRoom.id;
         const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/book`, {
             method: 'POST',
@@ -1650,10 +1714,25 @@ async function confirmBookingMultiple(checkIn, checkOut) {
             await roomManager.loadRooms();
         } else {
             alert('Failed to create booking: ' + result.error);
+            // Re-enable button on error
+            const submitBtn = document.getElementById('confirm-booking-btn');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Confirm Booking';
+            }
         }
     } catch (error) {
         console.error('Error creating booking:', error);
         alert('Error creating booking. Please try again.');
+        // Re-enable button on error
+        const submitBtn = document.getElementById('confirm-booking-btn');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Confirm Booking';
+        }
+    } finally {
+        // Reset flag
+        isBookingInProgress = false;
     }
 }
 
