@@ -125,50 +125,11 @@ def root():
         'version': '1.0.0',
         'endpoints': {
             'health': '/backend/health',
-            'rooms': '/backend/api/admin/rooms',
-            'room_stats': '/backend/api/admin/rooms/stats'
+            'rooms': '/backend/api/admin/rooms'
         }
     }), 200
 
 # ===== Room API Endpoints =====
-
-@app.route('/backend/api/admin/rooms/stats', methods=['GET'])
-def get_room_stats():
-    """Get room statistics"""
-    try:
-        if rooms_collection is None:
-            # Use fallback data
-            rooms = fallback_rooms
-        else:
-            rooms = list(rooms_collection.find())
-        
-        # Calculate stats based on bookedIntervals instead of bookingStatus
-        from datetime import date
-        today = date.today().isoformat()
-        
-        def has_active_booking(room):
-            intervals = room.get('bookedIntervals', [])
-            for interval in intervals:
-                if interval.get('checkIn') <= today <= interval.get('checkOut'):
-                    return True
-            return False
-        
-        booked_count = len([r for r in rooms if has_active_booking(r)])
-        stats = {
-            'total': len(rooms),
-            'available': len(rooms) - booked_count,
-            'booked': booked_count
-        }
-        
-        return jsonify({
-            'success': True,
-            'data': stats
-        }), 200
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
 
 @app.route('/backend/api/admin/rooms', methods=['GET'])
 def get_all_rooms():

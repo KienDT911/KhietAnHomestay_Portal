@@ -206,23 +206,6 @@ class RoomManager {
             throw error;
         }
     }
-
-    // Get statistics
-    async getStats() {
-        try {
-            const response = await fetch(`${this.apiUrl}/stats`);
-            const result = await response.json();
-            
-            if (result.success) {
-                return result.data;
-            } else {
-                throw new Error(result.error);
-            }
-        } catch (error) {
-            console.error('Error fetching stats:', error);
-            return { total: 0, available: 0, booked: 0 };
-        }
-    }
 }
 
 // Initialize Room Manager
@@ -358,12 +341,6 @@ function switchTab(tabName) {
 
 // Update dashboard
 async function updateDashboard() {
-    const stats = await roomManager.getStats();
-    
-    document.getElementById('total-rooms').textContent = stats.total || 0;
-    document.getElementById('available-count').textContent = stats.available || 0;
-    document.getElementById('booked-count').textContent = stats.booked || 0;
-    
     // Update month display
     updateMonthDisplay();
     
