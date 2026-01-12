@@ -909,12 +909,22 @@ function filterRooms() {
 async function saveRoom(event) {
     event.preventDefault();
     
+    // Get submit button and prevent multiple clicks
+    const submitButton = event.target.querySelector('button[type="submit"]');
+    if (submitButton.disabled) return;
+    
+    const originalText = submitButton.textContent;
+    submitButton.disabled = true;
+    submitButton.textContent = 'Saving...';
+    
     const roomId = document.getElementById('room-id').value;
     const customId = document.getElementById('room-custom-id')?.value;
     
     // Validate custom ID format (4 digits)
     if (!roomId && customId && !/^[0-9]{4}$/.test(customId)) {
         alert('Room ID must be exactly 4 digits (e.g., 0101, 0201)');
+        submitButton.disabled = false;
+        submitButton.textContent = originalText;
         return;
     }
     
@@ -922,6 +932,8 @@ async function saveRoom(event) {
     if (!roomId && customId && roomManager.isRoomIdTaken(customId)) {
         alert(`Room ID "${customId}" is already taken. Please choose a different ID.`);
         document.getElementById('room-custom-id').focus();
+        submitButton.disabled = false;
+        submitButton.textContent = originalText;
         return;
     }
     
@@ -952,6 +964,10 @@ async function saveRoom(event) {
         updateDashboard();
     } catch (error) {
         alert('Error saving room: ' + error.message);
+    } finally {
+        // Re-enable button after operation completes
+        submitButton.disabled = false;
+        submitButton.textContent = originalText;
     }
 }
 
@@ -1021,7 +1037,10 @@ function resetForm() {
         customIdField.disabled = false;  // Re-enable for new rooms
     }
     document.getElementById('form-title').textContent = 'Add New Room';
-    document.getElementById('booked-until-group').style.display = 'none';
+    const bookedUntilGroup = document.getElementById('booked-until-group');
+    if (bookedUntilGroup) {
+        bookedUntilGroup.style.display = 'none';
+    }
 }
 
 // Quick edit modal for price update from dashboard
