@@ -1335,6 +1335,18 @@ html, body {
     margin-top: 25px;
 }
 
+/* ===== Disabled button style for all button types ===== */
+.btn-disabled,
+.btn-danger-outline:disabled {
+  background: #ccc !important;
+  color: #888 !important;
+  border-color: #ccc !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+  pointer-events: none !important;
+  opacity: 1 !important;
+}
+
 /* ===== Responsive ===== */
 
 /* Large Desktop (1920px and above) */
@@ -2137,7 +2149,6 @@ html, body {
     position: relative;
     z-index: 10;
     transform: scale(1.02);
-    border-radius: 6px;
 }
 
 @keyframes glowPulse {
@@ -2706,6 +2717,8 @@ html, body {
         padding: 0 !important;
     }
 
+
+
     .rooms-calendar-container {
         margin-left: 0 !important;
         padding: 0 !important;
@@ -2807,28 +2820,12 @@ html, body {
     .room-info-panel .room-number {
         font-size: 10px;
         padding: 2px 6px;
-        margin-bottom: 0;
     }
 
     .room-info-panel h4 {
         font-size: 13px;
-        margin-bottom: 0;
-        flex: 1;
     }
 
-    .room-info-panel .room-details {
-        width: 100%;
-        font-size: 10px;
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-    }
-
-    .room-info-panel .room-details p {
-        margin: 0;
-    }
-
-    /* Calendar grid - Full width display */
     .calendar-panel {
         width: 100% !important;
         overflow-x: visible !important;
@@ -2961,4 +2958,13 @@ html, body {
     .rooms-quick-grid {
         grid-template-columns: repeat(2, 1fr) !important;
     }
+}
+
+/* Temporary selection highlight for filter interval */
+.calendar-day.temp-selected {
+  background: #e6f7e6 !important;
+  border: 2px solid var(--sage-green) !important;
+  color: var(--dark-green) !important;
+  position: relative;
+  z-index: 1;
 }

@@ -1,3 +1,20 @@
+// Set min date for check-in input and validate on change
+document.addEventListener('DOMContentLoaded', function() {
+    const checkinInput = document.getElementById('dashboard-filter-checkin');
+    if (checkinInput) {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        const todayStr = `${yyyy}-${mm}-${dd}`;
+        checkinInput.setAttribute('min', todayStr);
+        checkinInput.addEventListener('change', function() {
+            if (checkinInput.value < todayStr) {
+                checkinInput.value = todayStr;
+            }
+        });
+    }
+});
 // ===== Configuration =====
 const API_BASE_URL = 'https://khietanportal.vercel.app/backend/api/admin';
 
@@ -402,16 +419,46 @@ async function updateDashboard() {
 
 // ===== Dashboard Filter Functions =====
 
+// Add event listener: when checkin changes, clear checkout and jump to month
+document.addEventListener('DOMContentLoaded', function() {
+    const checkinInput = document.getElementById('dashboard-filter-checkin');
+    const checkoutInput = document.getElementById('dashboard-filter-checkout');
+    if (checkinInput) {
+        checkinInput.addEventListener('change', function() {
+            if (checkoutInput) checkoutInput.value = '';
+            // Jump calendar to checkin month
+            if (checkinInput.value) {
+                const d = new Date(checkinInput.value);
+                if (!isNaN(d.getTime())) {
+                    currentCalendarYear = d.getFullYear();
+                    currentCalendarMonth = d.getMonth();
+                    updateMonthDisplay();
+                }
+            }
+            applyDashboardFilters();
+        });
+    }
+});
+
 // Apply filters and render calendars
 function applyDashboardFilters() {
     const capacityFilter = document.getElementById('dashboard-filter-capacity')?.value || '';
     const priceFilter = document.getElementById('dashboard-filter-price')?.value || '';
-    const checkinDate = document.getElementById('dashboard-filter-checkin')?.value || '';
-    const checkoutDate = document.getElementById('dashboard-filter-checkout')?.value || '';
+    let checkinDate = document.getElementById('dashboard-filter-checkin')?.value || '';
+    let checkoutDate = document.getElementById('dashboard-filter-checkout')?.value || '';
     const sortBy = document.getElementById('dashboard-sort')?.value || 'room_id';
-    
+
+    // Auto-correct: if checkout <= checkin, set checkout = one day after checkin
+    if (checkinDate && checkoutDate && checkoutDate <= checkinDate) {
+        const nextDay = new Date(checkinDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const nextDayStr = nextDay.toISOString().slice(0, 10);
+        checkoutDate = nextDayStr;
+        document.getElementById('dashboard-filter-checkout').value = nextDayStr;
+    }
+
     let filteredRooms = [...roomManager.getAllRooms()];
-    
+
     // Filter by capacity
     if (capacityFilter) {
         filteredRooms = filteredRooms.filter(room => {
@@ -425,7 +472,7 @@ function applyDashboardFilters() {
             }
         });
     }
-    
+
     // Filter by price
     if (priceFilter) {
         filteredRooms = filteredRooms.filter(room => {
@@ -439,7 +486,7 @@ function applyDashboardFilters() {
             }
         });
     }
-    
+
     // Filter by availability for date range (check-in to check-out)
     if (checkinDate && checkoutDate) {
         filteredRooms = filteredRooms.filter(room => {
@@ -452,15 +499,15 @@ function applyDashboardFilters() {
             return !bookedDates.has(checkinDate);
         });
     }
-    
+
     // Sort rooms
     filteredRooms = sortRooms(filteredRooms, sortBy);
-    
+
     // Update results count
     updateFilterResultsCount(filteredRooms.length, roomManager.getAllRooms().length);
-    
-    // Render filtered calendars
-    renderFilteredCalendars(filteredRooms);
+
+    // Render filtered calendars with temporary selection highlight
+    renderFilteredCalendars(filteredRooms, checkinDate, checkoutDate);
 }
 
 // Check if room is available for entire date range
@@ -538,13 +585,13 @@ function resetDashboardFilters() {
     applyDashboardFilters();
 }
 
-// Render filtered room calendars
-function renderFilteredCalendars(rooms) {
+// Render filtered room calendars, with optional temp selection
+function renderFilteredCalendars(rooms, checkinDate, checkoutDate) {
     const container = document.getElementById('rooms-calendar-container');
     if (!container) return;
-    
+
     container.innerHTML = '';
-    
+
     if (rooms.length === 0) {
         container.innerHTML = `
             <div class="no-results">
@@ -557,12 +604,12 @@ function renderFilteredCalendars(rooms) {
         `;
         return;
     }
-    
+
     rooms.forEach(room => {
-        const rowEl = createRoomCalendarRow(room);
+        const rowEl = createRoomCalendarRow(room, checkinDate, checkoutDate);
         container.appendChild(rowEl);
     });
-    
+
     // Add legend at the bottom
     addCalendarLegend(container);
 }
@@ -615,11 +662,11 @@ function renderRoomCalendars() {
     applyDashboardFilters();
 }
 
-// Create a room calendar row
-function createRoomCalendarRow(room) {
+// Create a room calendar row, with optional temp selection
+function createRoomCalendarRow(room, checkinDate, checkoutDate) {
     const row = document.createElement('div');
     row.className = 'room-calendar-row';
-    
+
     // Room info panel
     const infoPanel = document.createElement('div');
     infoPanel.className = 'room-info-panel';
@@ -633,25 +680,25 @@ function createRoomCalendarRow(room) {
     `;
     infoPanel.style.cursor = 'pointer';
     infoPanel.onclick = () => openQuickEditModal(room.room_id || room.id);
-    
+
     // Calendar panel
     const calendarPanel = document.createElement('div');
     calendarPanel.className = 'calendar-panel';
-    
-    const calendarGrid = createCalendarGrid(room);
+
+    const calendarGrid = createCalendarGrid(room, checkinDate, checkoutDate);
     calendarPanel.appendChild(calendarGrid);
-    
+
     row.appendChild(infoPanel);
     row.appendChild(calendarPanel);
-    
+
     return row;
 }
 
-// Create calendar grid for a room
-function createCalendarGrid(room) {
+// Create calendar grid for a room, with optional temp selection
+function createCalendarGrid(room, checkinDate, checkoutDate) {
     const grid = document.createElement('div');
     grid.className = 'calendar-grid';
-    
+
     // Day headers
     const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     dayHeaders.forEach(day => {
@@ -660,69 +707,80 @@ function createCalendarGrid(room) {
         header.textContent = day;
         grid.appendChild(header);
     });
-    
+
     // Get booked dates for this room
     const bookedDates = getBookedDatesForRoom(room);
     const bookedIntervals = getBookedIntervalsForRoom(room);
-    
+
     // Build a map of date to interval info for booking bars
     const dateToIntervalInfo = buildDateToIntervalMap(bookedIntervals, currentCalendarYear, currentCalendarMonth);
-    
+
     // Get current date info
     const today = new Date();
     const todayStr = formatDateString(today);
-    
+
     // Get first day of month and number of days
     const firstDay = new Date(currentCalendarYear, currentCalendarMonth, 1);
     const lastDay = new Date(currentCalendarYear, currentCalendarMonth + 1, 0);
     const daysInMonth = lastDay.getDate();
     const startDayOfWeek = firstDay.getDay(); // 0 = Sunday
-    
+
+    // Prepare temp selection set if valid interval
+    let tempSelected = new Set();
+    if (checkinDate && checkoutDate && checkoutDate >= checkinDate) {
+        let d = new Date(checkinDate);
+        const end = new Date(checkoutDate);
+        while (d < end) {
+            tempSelected.add(formatDateString(d));
+            d.setDate(d.getDate() + 1);
+        }
+    }
+
     // Add empty cells for days before the first of the month
     for (let i = 0; i < startDayOfWeek; i++) {
         const emptyCell = document.createElement('div');
         emptyCell.className = 'calendar-day empty';
         grid.appendChild(emptyCell);
     }
-    
+
     // Add day cells
     for (let day = 1; day <= daysInMonth; day++) {
         const date = new Date(currentCalendarYear, currentCalendarMonth, day);
         const dateStr = formatDateString(date);
-        
+
         const dayCell = document.createElement('div');
         dayCell.className = 'calendar-day';
         dayCell.dataset.date = dateStr;
         dayCell.dataset.roomId = room.room_id || room.id;
-        
+
         // Check if today
         if (dateStr === todayStr) {
             dayCell.classList.add('today');
         }
-        
+
         // Check if past (before today)
         if (date < new Date(today.getFullYear(), today.getMonth(), today.getDate())) {
             dayCell.classList.add('past');
         }
-        
+
         // Check if booked
         if (bookedDates.has(dateStr)) {
             dayCell.classList.add('booked');
             const interval = findIntervalForDate(bookedIntervals, dateStr);
             const intervalInfo = dateToIntervalInfo.get(dateStr);
-            
+
             // Add day number as small text
             const dayNumber = document.createElement('span');
             dayNumber.className = 'day-number';
             dayNumber.textContent = day;
             dayCell.appendChild(dayNumber);
-            
+
             // Add booking bar based on position in interval
             if (intervalInfo) {
                 const bookingBar = createBookingBar(interval, intervalInfo, room);
                 dayCell.appendChild(bookingBar);
             }
-            
+
             dayCell.onclick = (e) => handleBookedDateClick(room, interval, e);
             dayCell.style.cursor = 'pointer';
         } else {
@@ -734,10 +792,15 @@ function createCalendarGrid(room) {
                 dayCell.onclick = (e) => handleDateSelection(e, room, date);
             }
         }
-        
+
+        // Highlight temp selection if in interval and not booked
+        if (tempSelected.size > 0 && tempSelected.has(dateStr) && !dayCell.classList.contains('booked')) {
+            dayCell.classList.add('temp-selected');
+        }
+
         grid.appendChild(dayCell);
     }
-    
+
     return grid;
 }
 
@@ -1329,6 +1392,16 @@ function handleBookedDateClick(room, interval, event) {
     }
     
     showModalAboveSelection();
+
+    // Ensure cancel booking button is enabled and ready for use
+    const cancelBtn = document.querySelector('.cancel-booking-section .btn-danger-outline');
+    if (cancelBtn) {
+        cancelBtn.disabled = false;
+        cancelBtn.classList.remove('btn-disabled');
+        cancelBtn.textContent = 'Cancel Booking';
+    }
+    // Reset cancel flag
+    isCancelBookingInProgress = false;
 }
 
 // Validate edit booking form
@@ -1849,12 +1922,28 @@ async function confirmBookingMultiple(checkIn, checkOut) {
 }
 
 // Confirm unlock/cancel booking
+let isCancelBookingInProgress = false;
 async function confirmUnlockRoom() {
+    if (isCancelBookingInProgress) return;
+    isCancelBookingInProgress = true;
+    const cancelBtn = document.querySelector('.cancel-booking-section .btn-danger-outline');
+    let originalText = '';
+    if (cancelBtn) {
+        cancelBtn.disabled = true;
+        cancelBtn.classList.add('btn-disabled');
+        originalText = cancelBtn.textContent;
+        cancelBtn.textContent = 'Processing...';
+    }
     if (!selectedRoom || !currentBookingInterval) {
         alert('No booking selected');
+        if (cancelBtn) {
+            cancelBtn.disabled = false;
+            cancelBtn.classList.remove('btn-disabled');
+            cancelBtn.textContent = originalText || 'Cancel Booking';
+        }
+        isCancelBookingInProgress = false;
         return;
     }
-    
     try {
         const roomId = selectedRoom.room_id || selectedRoom.id;
         const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/unbook`, {
@@ -1865,20 +1954,32 @@ async function confirmUnlockRoom() {
                 checkOut: currentBookingInterval.checkOut
             })
         });
-        
         const result = await response.json();
-        
         if (result.success) {
             alert('Booking cancelled successfully!');
             closeBookingModal();
             currentBookingInterval = null;
             await roomManager.loadRooms();
+            isCancelBookingInProgress = false;
         } else {
             alert('Failed to cancel booking: ' + result.error);
+            if (cancelBtn) {
+                cancelBtn.disabled = false;
+                cancelBtn.classList.remove('btn-disabled');
+                cancelBtn.textContent = originalText || 'Cancel Booking';
+            }
+            isCancelBookingInProgress = false;
         }
     } catch (error) {
         console.error('Error cancelling booking:', error);
         alert('Error cancelling booking. Please try again.');
+        if (cancelBtn) {
+            cancelBtn.disabled = false;
+            cancelBtn.classList.remove('btn-disabled');
+            cancelBtn.textContent = originalText || 'Cancel Booking';
+        }
+    } finally {
+        isCancelBookingInProgress = false;
     }
 }
 
@@ -1886,16 +1987,27 @@ async function confirmUnlockRoom() {
 function closeBookingModal() {
     const modal = document.getElementById('booking-modal');
     const modalContent = modal.querySelector('.booking-modal-content');
-    
+
     modal.style.display = 'none';
     modal.classList.remove('positioned-above', 'positioned-below');
     modalContent.style.marginTop = '';
     modalContent.style.marginBottom = '';
-    
+
     resetDateSelection();
     currentBookingInterval = null;
     lastClickedCell = null;
-    
+
+    // Reset cancel flag so user can cancel again
+    isCancelBookingInProgress = false;
+
+    // Reset cancel button state if present
+    const cancelBtn = document.querySelector('.cancel-booking-section .btn-danger-outline');
+    if (cancelBtn) {
+        cancelBtn.disabled = false;
+        cancelBtn.classList.remove('btn-disabled');
+        cancelBtn.textContent = 'Cancel Booking';
+    }
+
     // Show floating button again (if needed - will be updated by updateBookingButton)
     updateBookingButton();
 }
