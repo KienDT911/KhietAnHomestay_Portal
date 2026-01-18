@@ -276,6 +276,41 @@
                             <input type="text" id="room-amenities" required placeholder="Queen Bed, Private Bath, Garden View, Free WiFi">
                         </div>
 
+                        <div class="form-group">
+                            <label>Room Images</label>
+                            <div class="image-gallery-container" id="room-images-container">
+                                <!-- Cover Image Section -->
+                                <div class="image-section">
+                                    <div class="section-header-label">
+                                        <span class="section-title">Cover Image</span>
+                                        <small class="section-hint">Main display image (1 recommended)</small>
+                                    </div>
+                                    <div class="image-gallery" id="room-cover-gallery" data-category="cover">
+                                        <div class="image-drop-zone" id="room-cover-dropzone">
+                                            <span class="drop-icon">+</span>
+                                            <span class="drop-text">Drop or click to add cover</span>
+                                            <input type="file" accept="image/*" style="display:none" multiple>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Room Images Section -->
+                                <div class="image-section">
+                                    <div class="section-header-label">
+                                        <span class="section-title">Room Images</span>
+                                        <small class="section-hint">Additional photos (drag to reorder)</small>
+                                    </div>
+                                    <div class="image-gallery" id="room-images-gallery" data-category="room">
+                                        <div class="image-drop-zone" id="room-images-dropzone">
+                                            <span class="drop-icon">+</span>
+                                            <span class="drop-text">Drop or click to add images</span>
+                                            <input type="file" accept="image/*" style="display:none" multiple>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <small class="image-hint">Max 5MB per image (JPG, PNG, WebP). Drag images to reorder.</small>
+                        </div>
+
                         <div class="form-actions">
                             <button type="submit" class="btn-primary">Save Room</button>
                             <button type="button" class="btn-secondary" onclick="resetForm()">Cancel</button>
@@ -325,6 +360,41 @@
                 <div class="form-group">
                     <label for="edit-room-amenities">Amenities (comma-separated) *</label>
                     <input type="text" id="edit-room-amenities" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Room Images</label>
+                    <div class="image-gallery-container" id="edit-room-images-container">
+                        <!-- Cover Image Section -->
+                        <div class="image-section">
+                            <div class="section-header-label">
+                                <span class="section-title">Cover Image</span>
+                                <small class="section-hint">Main display image (1 recommended)</small>
+                            </div>
+                            <div class="image-gallery" id="edit-room-cover-gallery" data-category="cover">
+                                <div class="image-drop-zone" id="edit-room-cover-dropzone">
+                                    <span class="drop-icon">+</span>
+                                    <span class="drop-text">Drop or click to add cover</span>
+                                    <input type="file" accept="image/*" style="display:none" multiple>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Room Images Section -->
+                        <div class="image-section">
+                            <div class="section-header-label">
+                                <span class="section-title">Room Images</span>
+                                <small class="section-hint">Additional photos (drag to reorder)</small>
+                            </div>
+                            <div class="image-gallery" id="edit-room-images-gallery" data-category="room">
+                                <div class="image-drop-zone" id="edit-room-images-dropzone">
+                                    <span class="drop-icon">+</span>
+                                    <span class="drop-text">Drop or click to add images</span>
+                                    <input type="file" accept="image/*" style="display:none" multiple>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <small class="image-hint">Max 5MB per image (JPG, PNG, WebP). Drag images to reorder.</small>
                 </div>
 
                 <div class="form-actions">

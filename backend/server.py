@@ -5,9 +5,10 @@ from pymongo.server_api import ServerApi
 from pymongo import ReplaceOne
 from bson.objectid import ObjectId
 from dotenv import load_dotenv
+from werkzeug.utils import secure_filename
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Custom JSON encoder to handle datetime and ObjectId
 class MongoJSONEncoder(json.JSONEncoder):
@@ -22,7 +23,7 @@ class MongoJSONEncoder(json.JSONEncoder):
 load_dotenv()
 
 # Initialize Flask app
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', static_url_path='/backend/static')
 
 # Configure CORS for global access
 CORS(app, resources={
@@ -39,6 +40,8 @@ client = None
 db = None
 rooms_collection = None
 fallback_rooms = []
+UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # MongoDB Connection - Try Primary Source First
 print("🔄 Attempting MongoDB connection...")
@@ -112,6 +115,12 @@ def convert_room_for_api(room):
         'created_at': str(room.get('created_at', '')) if room.get('created_at') else None,
         'updated_at': str(room.get('updated_at', '')) if room.get('updated_at') else None
     }
+    # Include legacy single imageUrl if present
+    if room.get('imageUrl'):
+        api_room['imageUrl'] = room.get('imageUrl')
+    # Include multi-image structure
+    if room.get('images'):
+        api_room['images'] = room.get('images')
     return api_room
 
 # ===== Root & Info Endpoints =====
@@ -230,8 +239,8 @@ def add_room():
             'description': data.get('description'),
             'amenities': data.get('amenities', []),
             'bookedIntervals': [],
-            'created_at': datetime.utcnow(),
-            'updated_at': datetime.utcnow()
+            'created_at': datetime.now(timezone.utc),
+            'updated_at': datetime.now(timezone.utc)
         }
         
         if rooms_collection is None:
@@ -299,7 +308,9 @@ def update_room(room_id):
                 room['price'] = float(data['price'])
             if 'capacity' in data:
                 room['persons'] = int(data['capacity'])
-            room['updated_at'] = datetime.utcnow().isoformat()
+            if 'images' in data:
+                room['images'] = data['images']
+            room['updated_at'] = datetime.now(timezone.utc).isoformat()
             
             api_room = convert_room_for_api(room.copy())
         else:
@@ -336,7 +347,9 @@ def update_room(room_id):
                 updated_room['description'] = data['description']
             if 'amenities' in data:
                 updated_room['amenities'] = data['amenities']
-            updated_room['updated_at'] = datetime.utcnow()
+            if 'images' in data:
+                updated_room['images'] = data['images']
+            updated_room['updated_at'] = datetime.now(timezone.utc)
             
             # Use ReplaceOne with upsert=True for MongoDB
             operations = [ReplaceOne({'_id': room_id}, updated_room, upsert=True)]
@@ -356,6 +369,378 @@ def update_room(room_id):
             'success': False,
             'error': str(e)
         }), 500
+
+
+@app.route('/backend/api/admin/rooms/<room_id>/image', methods=['POST'])
+def upload_room_image(room_id):
+    """Upload an image for a room and save imageUrl to room document"""
+    try:
+        if 'image' not in request.files:
+            return jsonify({'success': False, 'error': 'No image file provided'}), 400
+
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'Empty filename'}), 400
+
+        filename = secure_filename(file.filename)
+        # Make filename unique
+        base, ext = os.path.splitext(filename)
+        unique_name = f"{base}_{int(datetime.now(timezone.utc).timestamp())}{ext}"
+        save_path = os.path.join(UPLOAD_FOLDER, unique_name)
+        file.save(save_path)
+
+        # Build public URL path (matches static_url_path='/backend/static')
+        image_url = f"/backend/static/uploads/{unique_name}"
+
+        # Update room document
+        if rooms_collection is None:
+            room = next((r for r in fallback_rooms if r.get('_id') == room_id), None)
+            if not room:
+                return jsonify({'success': False, 'error': 'Room not found'}), 404
+            room['imageUrl'] = image_url
+            room['updated_at'] = datetime.now().isoformat()
+            with open(json_file_path, 'w') as f:
+                json.dump(fallback_rooms, f, indent=2)
+        else:
+            # Try to update by string id or ObjectId
+            filter_id = {'_id': room_id}
+            room = rooms_collection.find_one(filter_id)
+            if not room:
+                try:
+                    obj_id = ObjectId(room_id)
+                    filter_id = {'_id': obj_id}
+                except:
+                    pass
+
+            result = rooms_collection.update_one(filter_id, {
+                '$set': {'imageUrl': image_url, 'updated_at': datetime.now(timezone.utc)}
+            })
+
+            if result.matched_count == 0:
+                return jsonify({'success': False, 'error': 'Room not found'}), 404
+
+        return jsonify({'success': True, 'message': 'Image uploaded', 'imageUrl': image_url}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/backend/api/admin/rooms/<room_id>/image', methods=['DELETE'])
+def delete_room_image(room_id):
+    """Delete an image for a room and remove imageUrl from room document"""
+    try:
+        # Find room
+        target_room = None
+        if rooms_collection is None:
+            target_room = next((r for r in fallback_rooms if r.get('_id') == room_id), None)
+            if not target_room:
+                return jsonify({'success': False, 'error': 'Room not found'}), 404
+        else:
+            target_room = rooms_collection.find_one({'_id': room_id})
+            if not target_room:
+                try:
+                    obj_id = ObjectId(room_id)
+                    target_room = rooms_collection.find_one({'_id': obj_id})
+                    room_id_filter = {'_id': obj_id}
+                except:
+                    return jsonify({'success': False, 'error': 'Room not found'}), 404
+            else:
+                room_id_filter = {'_id': room_id}
+
+        # Determine image path
+        image_url = target_room.get('imageUrl') if target_room else None
+        if not image_url:
+            return jsonify({'success': False, 'error': 'No image to delete'}), 404
+
+        # Only handle local uploads under /backend/static/uploads/ or /static/uploads/
+        if '/static/uploads/' in image_url:
+            filename = image_url.split('/static/uploads/')[-1]
+            file_path = os.path.join(UPLOAD_FOLDER, filename)
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            except Exception as e:
+                # Log but continue to remove DB reference
+                print(f"⚠️ Failed removing file {file_path}: {e}")
+
+        # Remove imageUrl from room
+        if rooms_collection is None:
+            target_room.pop('imageUrl', None)
+            target_room['updated_at'] = datetime.now().isoformat()
+            with open(json_file_path, 'w') as f:
+                json.dump(fallback_rooms, f, indent=2)
+        else:
+            result = rooms_collection.update_one(room_id_filter, {'$unset': {'imageUrl': ''}, '$set': {'updated_at': datetime.now(timezone.utc)}})
+            if result.matched_count == 0:
+                return jsonify({'success': False, 'error': 'Room not found'}), 404
+
+        return jsonify({'success': True, 'message': 'Image deleted'}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ===== Multi-Image Endpoints =====
+
+@app.route('/backend/api/admin/rooms/<room_id>/images', methods=['POST'])
+def upload_room_image_multi(room_id):
+    """Upload an image for a room with category (cover/room)"""
+    try:
+        if 'image' not in request.files:
+            return jsonify({'success': False, 'error': 'No image file provided'}), 400
+
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'Empty filename'}), 400
+
+        category = request.form.get('category', 'room')  # 'cover' or 'room'
+        order = int(request.form.get('order', 0))
+
+        filename = secure_filename(file.filename)
+        # Make filename unique with category
+        base, ext = os.path.splitext(filename)
+        unique_name = f"{category}_{base}_{int(datetime.now(timezone.utc).timestamp())}_{order}{ext}"
+        save_path = os.path.join(UPLOAD_FOLDER, unique_name)
+        file.save(save_path)
+
+        # Build public URL path
+        image_url = f"/backend/static/uploads/{unique_name}"
+
+        # Update room document - add to images array
+        if rooms_collection is None:
+            room = next((r for r in fallback_rooms if r.get('_id') == room_id), None)
+            if not room:
+                return jsonify({'success': False, 'error': 'Room not found'}), 404
+            
+            if 'images' not in room:
+                room['images'] = {'cover': [], 'room': []}
+            if category not in room['images']:
+                room['images'][category] = []
+            room['images'][category].append(image_url)
+            room['updated_at'] = datetime.now().isoformat()
+            
+            with open(json_file_path, 'w', encoding='utf-8') as f:
+                json.dump(fallback_rooms, f, indent=2, ensure_ascii=False)
+        else:
+            # Try to find room
+            filter_id = {'_id': room_id}
+            room = rooms_collection.find_one(filter_id)
+            if not room:
+                try:
+                    obj_id = ObjectId(room_id)
+                    filter_id = {'_id': obj_id}
+                    room = rooms_collection.find_one(filter_id)
+                except:
+                    pass
+            
+            if not room:
+                return jsonify({'success': False, 'error': 'Room not found'}), 404
+
+            # Use $push to atomically add to array (avoids race conditions)
+            push_field = f'images.{category}'
+            
+            # Ensure the images structure exists first
+            if not room.get('images'):
+                rooms_collection.update_one(filter_id, {
+                    '$set': {'images': {'cover': [], 'room': []}}
+                })
+            elif category not in room.get('images', {}):
+                rooms_collection.update_one(filter_id, {
+                    '$set': {f'images.{category}': []}
+                })
+            
+            # Now push the new image URL atomically
+            result = rooms_collection.update_one(filter_id, {
+                '$push': {push_field: image_url},
+                '$set': {'updated_at': datetime.now(timezone.utc)}
+            })
+
+            if result.matched_count == 0:
+                return jsonify({'success': False, 'error': 'Room not found'}), 404
+
+        return jsonify({
+            'success': True, 
+            'message': 'Image uploaded', 
+            'imageUrl': image_url,
+            'category': category
+        }), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# IMPORTANT: This route must come BEFORE the delete route with <path:image_id>
+@app.route('/backend/api/admin/rooms/<room_id>/images/reorder', methods=['PUT', 'OPTIONS'])
+def reorder_room_images(room_id):
+    """Reorder images within a specific category"""
+    # Handle CORS preflight
+    if request.method == 'OPTIONS':
+        response = jsonify({'success': True})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Methods', 'PUT, OPTIONS')
+        return response, 200
+    
+    try:
+        data = request.get_json()
+        category = data.get('category', 'room')  # 'cover' or 'room'
+        new_order = data.get('images', [])  # Array of image URLs in new order
+        
+        print(f"🔄 Reordering {category} images for room {room_id}: {len(new_order)} images")
+        
+        if rooms_collection is None:
+            room = next((r for r in fallback_rooms if r.get('_id') == room_id), None)
+            if not room:
+                return jsonify({'success': False, 'error': 'Room not found'}), 404
+            
+            if 'images' not in room:
+                room['images'] = {'cover': [], 'room': []}
+            room['images'][category] = new_order
+            room['updated_at'] = datetime.now().isoformat()
+            
+            with open(json_file_path, 'w', encoding='utf-8') as f:
+                json.dump(fallback_rooms, f, indent=2, ensure_ascii=False)
+        else:
+            filter_id = {'_id': room_id}
+            room = rooms_collection.find_one(filter_id)
+            if not room:
+                try:
+                    obj_id = ObjectId(room_id)
+                    filter_id = {'_id': obj_id}
+                    room = rooms_collection.find_one(filter_id)
+                except:
+                    pass
+            
+            if not room:
+                return jsonify({'success': False, 'error': 'Room not found'}), 404
+
+            result = rooms_collection.update_one(filter_id, {
+                '$set': {f'images.{category}': new_order, 'updated_at': datetime.now(timezone.utc)}
+            })
+
+            if result.matched_count == 0:
+                return jsonify({'success': False, 'error': 'Room not found'}), 404
+
+        print(f"✓ Images reordered successfully")
+        return jsonify({'success': True, 'message': 'Images reordered'}), 200
+    except Exception as e:
+        print(f"❌ Reorder error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/backend/api/admin/rooms/<room_id>/images/<path:image_id>', methods=['DELETE'])
+def delete_room_image_multi(room_id, image_id):
+    """Delete a specific image from a room's images array"""
+    try:
+        # URL decode the image_id in case it's encoded
+        from urllib.parse import unquote
+        image_id = unquote(image_id)
+        print(f"🗑️ Deleting image: {image_id} from room {room_id}")
+        
+        # Find room
+        target_room = None
+        filter_id = {'_id': room_id}
+        
+        if rooms_collection is None:
+            target_room = next((r for r in fallback_rooms if r.get('_id') == room_id), None)
+            if not target_room:
+                return jsonify({'success': False, 'error': 'Room not found'}), 404
+        else:
+            target_room = rooms_collection.find_one(filter_id)
+            if not target_room:
+                try:
+                    obj_id = ObjectId(room_id)
+                    filter_id = {'_id': obj_id}
+                    target_room = rooms_collection.find_one(filter_id)
+                except:
+                    return jsonify({'success': False, 'error': 'Room not found'}), 404
+
+        if not target_room:
+            return jsonify({'success': False, 'error': 'Room not found'}), 404
+
+        # Find and remove the image from arrays
+        images = target_room.get('images', {'cover': [], 'room': []})
+        image_found = False
+        image_url_to_delete = None
+        
+        # image_id could be a filename like "room_xxx.jpg"
+        for category in ['cover', 'room']:
+            if category in images:
+                for url in images[category]:
+                    # Match if URL ends with the filename
+                    if url.endswith(image_id) or image_id in url or url == image_id:
+                        image_url_to_delete = url
+                        images[category].remove(url)
+                        image_found = True
+                        print(f"✓ Found and removed image: {url}")
+                        break
+            if image_found:
+                break
+
+        if not image_found:
+            return jsonify({'success': False, 'error': 'Image not found'}), 404
+
+        # Delete actual file if local
+        if image_url_to_delete and '/static/uploads/' in image_url_to_delete:
+            filename = image_url_to_delete.split('/static/uploads/')[-1]
+            file_path = os.path.join(UPLOAD_FOLDER, filename)
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            except Exception as e:
+                print(f"⚠️ Failed removing file {file_path}: {e}")
+
+        # Update room document
+        if rooms_collection is None:
+            target_room['images'] = images
+            target_room['updated_at'] = datetime.now().isoformat()
+            with open(json_file_path, 'w', encoding='utf-8') as f:
+                json.dump(fallback_rooms, f, indent=2, ensure_ascii=False)
+        else:
+            rooms_collection.update_one(filter_id, {
+                '$set': {'images': images, 'updated_at': datetime.now(timezone.utc)}
+            })
+
+        return jsonify({'success': True, 'message': 'Image deleted'}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/backend/api/admin/rooms/<room_id>/images', methods=['PUT'])
+def update_room_images_order(room_id):
+    """Update room images order/structure"""
+    try:
+        data = request.get_json()
+        images = data.get('images', {'cover': [], 'room': []})
+        
+        if rooms_collection is None:
+            room = next((r for r in fallback_rooms if r.get('_id') == room_id), None)
+            if not room:
+                return jsonify({'success': False, 'error': 'Room not found'}), 404
+            
+            room['images'] = images
+            room['updated_at'] = datetime.now().isoformat()
+            
+            with open(json_file_path, 'w', encoding='utf-8') as f:
+                json.dump(fallback_rooms, f, indent=2, ensure_ascii=False)
+        else:
+            filter_id = {'_id': room_id}
+            room = rooms_collection.find_one(filter_id)
+            if not room:
+                try:
+                    obj_id = ObjectId(room_id)
+                    filter_id = {'_id': obj_id}
+                except:
+                    return jsonify({'success': False, 'error': 'Room not found'}), 404
+
+            result = rooms_collection.update_one(filter_id, {
+                '$set': {'images': images, 'updated_at': datetime.now(timezone.utc)}
+            })
+
+            if result.matched_count == 0:
+                return jsonify({'success': False, 'error': 'Room not found'}), 404
+
+        return jsonify({'success': True, 'message': 'Images order updated'}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @app.route('/backend/api/admin/rooms/<room_id>', methods=['DELETE'])
 def delete_room(room_id):
@@ -767,4 +1152,6 @@ def internal_error(error):
 app = app
 
 if __name__ == '__main__':
-    app.run(debug=True, host='localhost', port=5000)
+    # Use threaded=True to handle multiple concurrent requests properly
+    # Disable use_reloader to prevent server restart when uploading files to static folder
+    app.run(debug=True, host='0.0.0.0', port=5000, threaded=True, use_reloader=False)

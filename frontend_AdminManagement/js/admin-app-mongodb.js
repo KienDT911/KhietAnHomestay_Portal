@@ -14,9 +14,107 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // Setup drag and drop for image upload areas
+    setupImageDragDrop('room-image-preview', 'room-image-file');
+    setupImageDragDrop('edit-room-image-preview', 'edit-room-image-file');
 });
+
+// Setup drag and drop for image preview areas
+function setupImageDragDrop(previewId, inputId) {
+    const preview = document.getElementById(previewId);
+    const input = document.getElementById(inputId);
+    
+    if (!preview || !input) return;
+    
+    // Click to open file dialog
+    preview.addEventListener('click', () => input.click());
+    
+    // Prevent default drag behaviors
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        preview.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+    });
+    
+    // Highlight on drag over
+    ['dragenter', 'dragover'].forEach(eventName => {
+        preview.addEventListener(eventName, () => {
+            preview.style.borderColor = 'var(--sage-green)';
+            preview.style.background = 'rgba(123, 155, 126, 0.1)';
+        });
+    });
+    
+    // Remove highlight on drag leave
+    ['dragleave', 'drop'].forEach(eventName => {
+        preview.addEventListener(eventName, () => {
+            preview.style.borderColor = '';
+            preview.style.background = '';
+        });
+    });
+    
+    // Handle drop
+    preview.addEventListener('drop', (e) => {
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            // Create a new DataTransfer to set files on input
+            const dt = new DataTransfer();
+            dt.items.add(files[0]);
+            input.files = dt.files;
+            // Trigger change event
+            input.dispatchEvent(new Event('change'));
+        }
+    });
+}
 // ===== Configuration =====
-const API_BASE_URL = 'https://khietanportal.vercel.app/backend/api/admin';
+// Use local backend when developing on localhost, otherwise use production API
+const API_BASE_URL = (function() {
+    const host = window.location.hostname;
+    if (host === '127.0.0.1' || host === 'localhost') {
+        // Use same hostname to avoid cross-origin issues
+        return `http://${host}:5000/backend/api/admin`;
+    }
+    return 'https://khietanportal.vercel.app/backend/api/admin';
+})();
+console.log('API_BASE_URL:', API_BASE_URL);
+
+// Global flag to prevent reloads during upload - MUST be defined before WebSocket intercept
+let isUploadingImages = false;
+
+// Intercept and disable Live Server's auto-reload during uploads
+(function() {
+    // Store original WebSocket
+    const OriginalWebSocket = window.WebSocket;
+    
+    // Override WebSocket to intercept Live Server messages
+    window.WebSocket = function(url, protocols) {
+        const socket = protocols ? new OriginalWebSocket(url, protocols) : new OriginalWebSocket(url);
+        
+        // Intercept onmessage to block reload during uploads
+        const originalOnMessage = socket.onmessage;
+        
+        Object.defineProperty(socket, 'onmessage', {
+            set: function(handler) {
+                socket._customHandler = function(event) {
+                    // Block reload messages during upload
+                    if (isUploadingImages) {
+                        console.log('🚫 Blocked Live Server reload during upload');
+                        return;
+                    }
+                    if (handler) handler.call(socket, event);
+                };
+                OriginalWebSocket.prototype.__lookupSetter__('onmessage').call(socket, socket._customHandler);
+            },
+            get: function() {
+                return socket._customHandler;
+            }
+        });
+        
+        return socket;
+    };
+    window.WebSocket.prototype = OriginalWebSocket.prototype;
+})();
 
 // ===== Authentication =====
 // User accounts with roles: 'admin' has full access, 'manager' cannot access room management
@@ -150,6 +248,7 @@ function toggleMobileFilter() {
 }
 
 // ===== Room Management System =====
+
 class RoomManager {
     constructor() {
         this.rooms = [];
@@ -158,6 +257,12 @@ class RoomManager {
 
     // Load rooms from MongoDB
     async loadRooms() {
+        // Don't reload while uploading/deleting images
+        if (isUploadingImages) {
+            console.log('⏸️ Skipping loadRooms - operation in progress');
+            return;
+        }
+        
         try {
             const response = await fetch(this.apiUrl);
             const result = await response.json();
@@ -174,6 +279,21 @@ class RoomManager {
         } catch (error) {
             console.error('Error loading rooms:', error);
             alert('Error connecting to database');
+        }
+    }
+
+    // Load rooms silently (no error alerts) - used after image upload/delete
+    async loadRoomsSilent() {
+        const response = await fetch(this.apiUrl);
+        const result = await response.json();
+        
+        if (result.success) {
+            this.rooms = result.data || [];
+            console.log(`✓ Loaded ${this.rooms.length} rooms from database`);
+            updateDashboard();
+            displayRooms();
+        } else {
+            throw new Error(result.error || 'Failed to load rooms');
         }
     }
 
@@ -222,7 +342,7 @@ class RoomManager {
     }
 
     // Update room
-    async updateRoom(id, roomData) {
+    async updateRoom(id, roomData, skipReload = false) {
         try {
             const response = await fetch(`${this.apiUrl}/${id}`, {
                 method: 'PUT',
@@ -234,7 +354,9 @@ class RoomManager {
             
             if (result.success) {
                 console.log('✓ Room updated successfully');
-                await this.loadRooms();
+                if (!skipReload) {
+                    await this.loadRooms();
+                }
                 return result.data;
             } else {
                 throw new Error(result.error);
@@ -677,9 +799,74 @@ function createRoomCalendarRow(room, checkinDate, checkoutDate) {
             <p>$${room.price}/night</p>
             <p>${room.capacity || room.persons} guests</p>
         </div>
+        <div class="room-image-placeholder"></div>
     `;
     infoPanel.style.cursor = 'pointer';
     infoPanel.onclick = () => openQuickEditModal(room.room_id || room.id);
+
+    // Image / upload handling
+    (function setupRoomImage() {
+        const placeholder = infoPanel.querySelector('.room-image-placeholder');
+        if (!placeholder) return;
+
+        const role = sessionStorage.getItem('adminRole') || 'manager';
+        const roomId = room.room_id || room.id;
+
+        const basePath = API_BASE_URL.split('/backend')[0] || '';
+
+        // Get image URL - prefer imageUrl, then first cover image, then first room image
+        let imageUrl = room.imageUrl;
+        if (!imageUrl && room.images) {
+            if (room.images.cover && room.images.cover.length > 0) {
+                imageUrl = room.images.cover[0];
+            } else if (room.images.room && room.images.room.length > 0) {
+                imageUrl = room.images.room[0];
+            }
+        }
+
+        if (imageUrl) {
+            const img = document.createElement('img');
+            img.className = 'room-image';
+            img.src = (imageUrl.startsWith('http') ? imageUrl : (basePath + imageUrl));
+            img.alt = room.name;
+            img.addEventListener('click', function(e) { e.stopPropagation(); openImageViewer(img.src); });
+            placeholder.appendChild(img);
+
+            // For admins, show edit button to open image gallery modal
+            if (role === 'admin') {
+                const controls = document.createElement('div');
+                controls.className = 'image-controls';
+
+                const editImagesBtn = document.createElement('button');
+                editImagesBtn.type = 'button';
+                editImagesBtn.className = 'image-change';
+                editImagesBtn.title = 'Manage images';
+                editImagesBtn.textContent = '✎';
+
+                editImagesBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    editRoom(roomId);
+                });
+
+                controls.appendChild(editImagesBtn);
+                placeholder.appendChild(controls);
+            }
+        } else if (role === 'admin') {
+            // No image yet - show button to open Edit modal for adding images
+            const uploadBtn = document.createElement('button');
+            uploadBtn.type = 'button';
+            uploadBtn.className = 'upload-icon';
+            uploadBtn.title = 'Add room images';
+            uploadBtn.textContent = '+';
+
+            uploadBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                editRoom(roomId);
+            });
+
+            placeholder.appendChild(uploadBtn);
+        }
+    })();
 
     // Calendar panel
     const calendarPanel = document.createElement('div');
@@ -802,6 +989,195 @@ function createCalendarGrid(room, checkinDate, checkoutDate) {
     }
 
     return grid;
+}
+
+// Upload room image to backend
+async function uploadRoomImage(roomId, file) {
+    const form = new FormData();
+    form.append('image', file);
+    try {
+        const resp = await fetch(`${API_BASE_URL}/rooms/${roomId}/image`, {
+            method: 'POST',
+            body: form
+        });
+
+        // If network-level error, fetch will throw and land in catch
+        const contentType = resp.headers.get('content-type') || '';
+        if (!resp.ok) {
+            let errText = resp.status + ' ' + resp.statusText;
+            try {
+                if (contentType.includes('application/json')) {
+                    const json = await resp.json();
+                    errText = json.error || JSON.stringify(json);
+                } else {
+                    errText = await resp.text();
+                }
+            } catch (e) {}
+            throw new Error('Upload failed: ' + errText);
+        }
+
+        const result = contentType.includes('application/json') ? await resp.json() : { success: true };
+        if (!result.success) {
+            throw new Error(result.error || 'Upload failed');
+        }
+        return result.imageUrl;
+    } catch (err) {
+        console.error('uploadRoomImage error:', err);
+        throw new Error(err.message || 'Failed to fetch');
+    }
+}
+
+// Delete room image
+async function deleteRoomImage(roomId) {
+    try {
+        const resp = await fetch(`${API_BASE_URL}/rooms/${roomId}/image`, {
+            method: 'DELETE'
+        });
+        if (!resp.ok) {
+            let text = resp.status + ' ' + resp.statusText;
+            try {
+                const j = await resp.json();
+                text = j.error || JSON.stringify(j);
+            } catch (_) {}
+            throw new Error(text);
+        }
+        return true;
+    } catch (err) {
+        console.error('deleteRoomImage error:', err);
+        throw err;
+    }
+}
+
+// Upload room image with category (cover/room)
+async function uploadRoomImageWithCategory(roomId, file, category, order) {
+    const form = new FormData();
+    form.append('image', file);
+    form.append('category', category);
+    form.append('order', order);
+    
+    try {
+        const resp = await fetch(`${API_BASE_URL}/rooms/${roomId}/images`, {
+            method: 'POST',
+            body: form
+        });
+
+        const contentType = resp.headers.get('content-type') || '';
+        if (!resp.ok) {
+            let errText = resp.status + ' ' + resp.statusText;
+            try {
+                if (contentType.includes('application/json')) {
+                    const json = await resp.json();
+                    errText = json.error || JSON.stringify(json);
+                } else {
+                    errText = await resp.text();
+                }
+            } catch (e) {}
+            throw new Error('Upload failed: ' + errText);
+        }
+
+        const result = contentType.includes('application/json') ? await resp.json() : { success: true };
+        if (!result.success) {
+            throw new Error(result.error || 'Upload failed');
+        }
+        return result.imageUrl;
+    } catch (err) {
+        console.error('uploadRoomImageWithCategory error:', err);
+        throw new Error(err.message || 'Failed to upload image');
+    }
+}
+
+// Update all images order in database (using existing /images PUT endpoint)
+async function updateAllImagesOrder(roomId, coverUrls, roomUrls) {
+    try {
+        console.log('📤 Saving image order for room:', roomId);
+        console.log('Cover URLs:', coverUrls);
+        console.log('Room URLs:', roomUrls);
+        
+        const resp = await fetch(`${API_BASE_URL}/rooms/${roomId}/images`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                images: {
+                    cover: coverUrls,
+                    room: roomUrls
+                }
+            })
+        });
+        
+        if (!resp.ok) {
+            let text = resp.status + ' ' + resp.statusText;
+            try {
+                const j = await resp.json();
+                text = j.error || JSON.stringify(j);
+            } catch (_) {}
+            throw new Error(text);
+        }
+        console.log('✓ Image order saved successfully');
+        return true;
+    } catch (err) {
+        console.error('updateAllImagesOrder error:', err);
+        throw err;
+    }
+}
+
+// Delete room image by URL/ID
+async function deleteRoomImageByUrl(roomId, imageUrl) {
+    try {
+        // Extract just the filename from the URL for simpler matching
+        let filename = imageUrl;
+        if (imageUrl.includes('/')) {
+            filename = imageUrl.split('/').pop();
+        }
+        // Remove any query params
+        if (filename.includes('?')) {
+            filename = filename.split('?')[0];
+        }
+        console.log('Deleting image:', filename, 'from room:', roomId);
+        console.log('Delete URL:', `${API_BASE_URL}/rooms/${roomId}/images/${encodeURIComponent(filename)}`);
+        
+        const resp = await fetch(`${API_BASE_URL}/rooms/${roomId}/images/${encodeURIComponent(filename)}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        console.log('Delete response status:', resp.status);
+        
+        if (!resp.ok) {
+            let text = resp.status + ' ' + resp.statusText;
+            try {
+                const j = await resp.json();
+                text = j.error || JSON.stringify(j);
+            } catch (_) {}
+            throw new Error(text);
+        }
+        return true;
+    } catch (err) {
+        console.error('deleteRoomImageByUrl error:', err);
+        throw err;
+    }
+}
+
+// Simple image viewer modal
+function openImageViewer(src) {
+    let overlay = document.getElementById('image-viewer-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'image-viewer-overlay';
+        overlay.className = 'image-viewer-overlay';
+        overlay.onclick = () => overlay.remove();
+        const img = document.createElement('img');
+        img.id = 'image-viewer-img';
+        img.className = 'image-viewer-img';
+        overlay.appendChild(img);
+        document.body.appendChild(overlay);
+    }
+    const img = document.getElementById('image-viewer-img');
+    img.src = src;
+    overlay.style.display = 'flex';
 }
 
 // Build a map of date to interval position info (accounting for week row breaks)
@@ -1066,13 +1442,33 @@ async function saveRoom(event) {
     }
     
     try {
+        let savedRoom;
         if (roomId) {
-            await roomManager.updateRoom(roomId, roomData);
-            alert('Room updated successfully!');
+            savedRoom = await roomManager.updateRoom(roomId, roomData);
         } else {
-            await roomManager.addRoom(roomData);
-            alert('Room added successfully!');
+            savedRoom = await roomManager.addRoom(roomData);
         }
+        
+        // Handle image uploads for new rooms
+        if (!roomId && savedRoom) {
+            const newRoomId = savedRoom.room_id || savedRoom.id || customId;
+            if (newRoomId) {
+                const pendingFiles = getPendingFilesForUpload('room');
+                if (pendingFiles.length > 0) {
+                    submitButton.textContent = 'Uploading images...';
+                    for (const item of pendingFiles) {
+                        try {
+                            await uploadRoomImageWithCategory(newRoomId, item.file, item.category, item.order);
+                        } catch (imgErr) {
+                            console.error('Image upload failed:', imgErr);
+                        }
+                    }
+                    await roomManager.loadRooms(); // Reload to get updated image URLs
+                }
+            }
+        }
+        
+        alert(roomId ? 'Room updated successfully!' : 'Room added successfully!');
         
         resetForm();
         displayRooms();
@@ -1091,6 +1487,9 @@ function editRoom(id) {
     const room = roomManager.getRoomById(id);
     if (!room) return;
     
+    // Set current room ID for immediate image uploads
+    currentEditRoomId = room.room_id;
+    
     document.getElementById('edit-room-id').value = room.room_id;
     document.getElementById('edit-room-display-id').value = room.room_id;
     document.getElementById('edit-room-name').value = room.name;
@@ -1099,12 +1498,21 @@ function editRoom(id) {
     document.getElementById('edit-room-description').value = room.description;
     document.getElementById('edit-room-amenities').value = room.amenities.join(', ');
     
+    // Setup image galleries
+    setupEditRoomImages(room);
+    
     document.getElementById('edit-form').onsubmit = async function(e) {
         e.preventDefault();
+        e.stopPropagation();
+        
+        console.log('=== UPDATE ROOM STARTED ===');
         
         // Prevent multiple clicks
         const submitButton = document.getElementById('edit-submit-btn');
-        if (submitButton.disabled) return;
+        if (submitButton.disabled) {
+            console.log('Button already disabled, ignoring click');
+            return false;
+        }
         
         const originalText = submitButton.textContent;
         submitButton.disabled = true;
@@ -1119,15 +1527,122 @@ function editRoom(id) {
         };
         
         try {
-            await roomManager.updateRoom(id, updatedData);
+            console.log('Updating room ID:', id);
+            // First update room info
+            await roomManager.updateRoom(id, updatedData, true);
+            
+            // Delete images marked for deletion
+            if (imagesToDelete.length > 0) {
+                isUploadingImages = true; // Also block reloads during delete
+                console.log('🔒 Delete lock ON');
+                
+                submitButton.textContent = `Removing images 0/${imagesToDelete.length}...`;
+                for (let i = 0; i < imagesToDelete.length; i++) {
+                    const imgUrl = imagesToDelete[i];
+                    try {
+                        console.log(`[${i + 1}/${imagesToDelete.length}] Deleting:`, imgUrl);
+                        await deleteRoomImageByUrl(id, imgUrl);
+                        submitButton.textContent = `Removing images ${i + 1}/${imagesToDelete.length}...`;
+                    } catch (err) {
+                        console.error('Failed to delete image:', err);
+                    }
+                    // Add small delay between deletes
+                    if (i < imagesToDelete.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                    }
+                }
+                console.log('🔓 Delete lock OFF');
+            }
+            
+            // Now upload pending images (images added during this edit session)
+            const pendingFiles = getPendingFilesForUpload('edit');
+            console.log('Pending files to upload:', pendingFiles.length, pendingFiles);
+            console.log('Room ID for upload:', id);
+            
+            let uploadedCount = 0;
+            let failedCount = 0;
+            
+            if (pendingFiles.length > 0) {
+                // Set global flag to prevent any reloads during upload
+                isUploadingImages = true;
+                console.log('🔒 Upload lock ON');
+                
+                submitButton.textContent = `Uploading images 0/${pendingFiles.length}...`;
+                console.log('=== STARTING UPLOAD LOOP ===');
+                
+                for (let i = 0; i < pendingFiles.length; i++) {
+                    const item = pendingFiles[i];
+                    console.log(`[${i + 1}/${pendingFiles.length}] Starting upload:`, item.file.name, 'category:', item.category);
+                    
+                    try {
+                        const result = await uploadRoomImageWithCategory(id, item.file, item.category, item.order);
+                        console.log(`[${i + 1}/${pendingFiles.length}] Upload SUCCESS:`, result);
+                        uploadedCount++;
+                        submitButton.textContent = `Uploading images ${uploadedCount}/${pendingFiles.length}...`;
+                    } catch (imgErr) {
+                        console.error(`[${i + 1}/${pendingFiles.length}] Upload FAILED:`, imgErr);
+                        failedCount++;
+                    }
+                    
+                    console.log(`[${i + 1}/${pendingFiles.length}] Completed. Waiting 500ms before next...`);
+                    
+                    // Add delay between uploads to prevent server overload
+                    if (i < pendingFiles.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        console.log(`[${i + 1}/${pendingFiles.length}] Wait done. Continuing to next file...`);
+                    }
+                }
+                
+                // Release the upload lock
+                isUploadingImages = false;
+                console.log('🔓 Upload lock OFF');
+                
+                console.log('=== UPLOAD LOOP FINISHED ===');
+                console.log(`Upload summary: ${uploadedCount} success, ${failedCount} failed`);
+                if (failedCount > 0) {
+                    alert(`${failedCount} image(s) failed to upload. Please try again.`);
+                }
+            }
+            
+            // Save the final image order ONLY if no new uploads happened
+            // (If we uploaded, the order is already correct in DB - don't overwrite with stale data)
+            if (pendingFiles.length === 0 && (existingImages.cover.length > 0 || existingImages.room.length > 0)) {
+                submitButton.textContent = 'Saving order...';
+                try {
+                    // Get final order of existing images (URLs only)
+                    const coverUrls = existingImages.cover.map(img => img.originalUrl);
+                    const roomUrls = existingImages.room.map(img => img.originalUrl);
+                    
+                    // Use single endpoint to save all image orders
+                    await updateAllImagesOrder(id, coverUrls, roomUrls);
+                    console.log('✓ Image order saved');
+                } catch (orderErr) {
+                    console.error('Failed to save image order:', orderErr);
+                }
+            } else if (pendingFiles.length > 0) {
+                console.log('⏭️ Skipping order save - just uploaded new images');
+            }
+            
+            console.log('=== ALL OPERATIONS COMPLETE ===');
+            
+            // Make sure lock is off before reloading
+            isUploadingImages = false;
+            
+            await roomManager.loadRooms(); // Reload to get updated data
+            
+            console.log('=== ROOMS RELOADED ===');
             alert('Room updated successfully!');
             closeModal();
+            currentEditRoomId = null; // Clear current edit room
             displayRooms();
             updateDashboard();
         } catch (error) {
+            console.error('=== UPDATE ROOM ERROR ===', error);
+            isUploadingImages = false; // Make sure to release lock on error
             alert('Error updating room: ' + error.message);
         } finally {
             // Re-enable button after operation completes
+            isUploadingImages = false; // Final safety release
             submitButton.disabled = false;
             submitButton.textContent = originalText;
         }
@@ -1153,6 +1668,8 @@ async function deleteRoomConfirm(id) {
 // Close modal
 function closeModal() {
     document.getElementById('edit-modal').style.display = 'none';
+    currentEditRoomId = null; // Clear current edit room
+    imagesToDelete = []; // Clear deletion list
 }
 
 // Reset form
@@ -1169,6 +1686,420 @@ function resetForm() {
     if (bookedUntilGroup) {
         bookedUntilGroup.style.display = 'none';
     }
+    // Reset image galleries
+    resetImageGalleries('room');
+}
+
+// ===== Multi-Image Gallery System =====
+
+// Current room being edited (for immediate uploads)
+let currentEditRoomId = null;
+
+// Store pending images for upload (only used for NEW rooms)
+let pendingImages = {
+    room: { cover: [], room: [] },
+    edit: { cover: [], room: [] }
+};
+
+// Store existing images for edit mode
+let existingImages = {
+    cover: [],
+    room: []
+};
+
+// Images marked for deletion
+let imagesToDelete = [];
+
+// Initialize image galleries on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Setup Add Room galleries
+    setupImageGallery('room-cover-gallery', 'room-cover-dropzone', 'room', 'cover');
+    setupImageGallery('room-images-gallery', 'room-images-dropzone', 'room', 'room');
+    
+    // Setup Edit Room galleries
+    setupImageGallery('edit-room-cover-gallery', 'edit-room-cover-dropzone', 'edit', 'cover');
+    setupImageGallery('edit-room-images-gallery', 'edit-room-images-dropzone', 'edit', 'room');
+});
+
+// Setup a single image gallery with drag-drop
+function setupImageGallery(galleryId, dropzoneId, formType, category) {
+    const gallery = document.getElementById(galleryId);
+    const dropzone = document.getElementById(dropzoneId);
+    
+    if (!gallery || !dropzone) return;
+    
+    const fileInput = dropzone.querySelector('input[type="file"]');
+    
+    // Click to select files
+    dropzone.addEventListener('click', (e) => {
+        // Don't trigger if clicking on the file input itself
+        if (e.target !== fileInput) {
+            fileInput.click();
+        }
+    });
+    
+    // File input change - handle async properly
+    fileInput.addEventListener('change', async (e) => {
+        const files = e.target.files;
+        if (files && files.length > 0) {
+            console.log(`Selected ${files.length} files for upload`);
+            await handleImageFiles(files, formType, category);
+        }
+        fileInput.value = ''; // Reset for next selection
+    });
+    
+    // Drag and drop for adding new images
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        gallery.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+    });
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        gallery.addEventListener(eventName, () => gallery.classList.add('drag-over'));
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        gallery.addEventListener(eventName, () => gallery.classList.remove('drag-over'));
+    });
+    
+    gallery.addEventListener('drop', async (e) => {
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            console.log(`Dropped ${files.length} files for upload`);
+            await handleImageFiles(files, formType, category);
+        }
+    });
+}
+
+// Handle selected image files - add to pending for preview (upload on save)
+async function handleImageFiles(files, formType, category) {
+    const fileArray = Array.from(files);
+    console.log(`handleImageFiles: ${fileArray.length} files, formType=${formType}, category=${category}`);
+    
+    // Add files to pending for preview (will upload when clicking Update Room)
+    for (const file of fileArray) {
+        // Validate file
+        if (!file.type.startsWith('image/')) {
+            alert('Please select only image files');
+            continue;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            alert(`Image "${file.name}" is too large. Max 5MB.`);
+            continue;
+        }
+        
+        // Read file and add to pending
+        const preview = await readFileAsDataURL(file);
+        const imageData = {
+            id: 'new_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+            file: file,
+            preview: preview,
+            isNew: true
+        };
+        pendingImages[formType][category].push(imageData);
+    }
+    
+    // Render gallery with new images
+    renderImageGallery(formType, category);
+}
+
+// Helper to read file as data URL
+function readFileAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+// Render image gallery
+function renderImageGallery(formType, category) {
+    const galleryId = formType === 'edit' 
+        ? (category === 'cover' ? 'edit-room-cover-gallery' : 'edit-room-images-gallery')
+        : (category === 'cover' ? 'room-cover-gallery' : 'room-images-gallery');
+    
+    const gallery = document.getElementById(galleryId);
+    if (!gallery) return;
+    
+    // Get dropzone
+    const dropzone = gallery.querySelector('.image-drop-zone');
+    
+    // Clear all image items but keep dropzone
+    gallery.querySelectorAll('.gallery-image-item').forEach(item => item.remove());
+    
+    // Combine existing and pending images
+    const images = formType === 'edit' 
+        ? [...existingImages[category], ...pendingImages[formType][category]]
+        : pendingImages[formType][category];
+    
+    // Add image items before dropzone
+    images.forEach((img, index) => {
+        const item = createGalleryImageItem(img, index, formType, category);
+        gallery.insertBefore(item, dropzone);
+    });
+}
+
+// Create gallery image item element
+function createGalleryImageItem(imageData, index, formType, category) {
+    const item = document.createElement('div');
+    item.className = 'gallery-image-item';
+    item.draggable = true;
+    item.dataset.imageId = imageData.id;
+    item.dataset.index = index;
+    item.dataset.formType = formType;
+    item.dataset.category = category;
+    
+    const imgSrc = imageData.preview || imageData.url;
+    
+    item.innerHTML = `
+        <img src="${imgSrc}" alt="Room image ${index + 1}">
+        <span class="image-order">${index + 1}</span>
+        <button type="button" class="image-delete-btn" title="Delete image">×</button>
+    `;
+    
+    // Click to view
+    item.querySelector('img').addEventListener('click', (e) => {
+        e.stopPropagation();
+        openImageViewer(imgSrc);
+    });
+    
+    // Delete button
+    item.querySelector('.image-delete-btn').addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        deleteGalleryImage(imageData, formType, category);
+    });
+    
+    // Drag events for reordering
+    item.addEventListener('dragstart', (e) => {
+        e.stopPropagation();
+        item.classList.add('dragging');
+        // Store the image ID for lookup during drop
+        e.dataTransfer.setData('text/plain', JSON.stringify({
+            imageId: imageData.id,
+            formType,
+            category
+        }));
+        e.dataTransfer.effectAllowed = 'move';
+    });
+    
+    item.addEventListener('dragend', () => {
+        item.classList.remove('dragging');
+        // Remove any visual indicators
+        document.querySelectorAll('.gallery-image-item.drag-over').forEach(el => {
+            el.classList.remove('drag-over');
+        });
+    });
+    
+    item.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const draggingItem = document.querySelector('.gallery-image-item.dragging');
+        if (draggingItem && draggingItem !== item) {
+            item.classList.add('drag-over');
+            e.dataTransfer.dropEffect = 'move';
+        }
+    });
+    
+    item.addEventListener('dragleave', (e) => {
+        item.classList.remove('drag-over');
+    });
+    
+    item.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        item.classList.remove('drag-over');
+        
+        try {
+            const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+            if (data.formType === formType && data.category === category && data.imageId !== imageData.id) {
+                // Find current indices by image ID
+                const fromIndex = findImageIndex(data.imageId, formType, category);
+                const toIndex = findImageIndex(imageData.id, formType, category);
+                
+                if (fromIndex !== -1 && toIndex !== -1) {
+                    reorderImages(fromIndex, toIndex, formType, category);
+                }
+            }
+        } catch (err) {
+            console.error('Drop error:', err);
+        }
+    });
+    
+    return item;
+}
+
+// Find index of image by its ID
+function findImageIndex(imageId, formType, category) {
+    let images;
+    if (formType === 'edit') {
+        images = [...existingImages[category], ...pendingImages[formType][category]];
+    } else {
+        images = pendingImages[formType][category];
+    }
+    return images.findIndex(img => img.id === imageId);
+}
+
+// Delete image from gallery
+function deleteGalleryImage(imageData, formType, category) {
+    console.log('deleteGalleryImage:', imageData.id, 'isNew:', imageData.isNew, 'formType:', formType);
+    
+    if (imageData.isNew) {
+        // Remove from pending (not uploaded yet) - no server call needed
+        console.log('Removing NEW image from pending');
+        pendingImages[formType][category] = pendingImages[formType][category]
+            .filter(img => img.id !== imageData.id);
+        renderImageGallery(formType, category);
+    } else if (formType === 'edit') {
+        // For existing images in edit mode - mark for deletion (will delete on save)
+        if (!confirm('Remove this image? It will be deleted when you click Update Room.')) return;
+        
+        console.log('Marking EXISTING image for deletion:', imageData.originalUrl);
+        // Mark for deletion on save
+        imagesToDelete.push(imageData.originalUrl);
+        
+        // Remove from local display
+        existingImages[category] = existingImages[category]
+            .filter(img => img.id !== imageData.id);
+        renderImageGallery(formType, category);
+    } else {
+        // Fallback: remove from display
+        console.log('Removing image (fallback)');
+        pendingImages[formType][category] = pendingImages[formType][category]
+            .filter(img => img.id !== imageData.id);
+        renderImageGallery(formType, category);
+    }
+}
+
+// Reorder images via drag and drop
+function reorderImages(fromIndex, toIndex, formType, category) {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
+    
+    console.log(`Reordering: ${fromIndex} -> ${toIndex} in ${formType}/${category}`);
+    
+    let images;
+    if (formType === 'edit') {
+        // Combine existing and pending for reordering
+        images = [...existingImages[category], ...pendingImages[formType][category]];
+    } else {
+        images = [...pendingImages[formType][category]];
+    }
+    
+    if (fromIndex >= images.length || toIndex >= images.length) return;
+    
+    // Move item from source to destination
+    const [movedItem] = images.splice(fromIndex, 1);
+    images.splice(toIndex, 0, movedItem);
+    
+    // Update arrays - maintain order but separate by type
+    if (formType === 'edit') {
+        // Keep all images in their new order, but split by isNew flag
+        existingImages[category] = images.filter(img => !img.isNew);
+        pendingImages[formType][category] = images.filter(img => img.isNew);
+    } else {
+        pendingImages[formType][category] = images;
+    }
+    
+    renderImageGallery(formType, category);
+}
+
+// Reset image galleries
+function resetImageGalleries(formType) {
+    pendingImages[formType] = { cover: [], room: [] };
+    if (formType === 'edit') {
+        existingImages = { cover: [], room: [] };
+        imagesToDelete = [];
+    }
+    renderImageGallery(formType, 'cover');
+    renderImageGallery(formType, 'room');
+}
+
+// Setup existing images for edit form
+function setupEditRoomImages(room) {
+    resetImageGalleries('edit');
+    
+    // Load existing images from room data
+    if (room.images) {
+        // New format: room.images = { cover: [...], room: [...] }
+        existingImages.cover = (room.images.cover || []).map((url, idx) => ({
+            id: `existing_cover_${idx}`,
+            url: buildImageUrl(url),
+            preview: buildImageUrl(url),
+            isNew: false,
+            originalUrl: url
+        }));
+        existingImages.room = (room.images.room || []).map((url, idx) => ({
+            id: `existing_room_${idx}`,
+            url: buildImageUrl(url),
+            preview: buildImageUrl(url),
+            isNew: false,
+            originalUrl: url
+        }));
+    } else if (room.imageUrl) {
+        // Legacy single image - treat as cover
+        existingImages.cover = [{
+            id: 'existing_cover_0',
+            url: buildImageUrl(room.imageUrl),
+            preview: buildImageUrl(room.imageUrl),
+            isNew: false,
+            originalUrl: room.imageUrl
+        }];
+    }
+    
+    renderImageGallery('edit', 'cover');
+    renderImageGallery('edit', 'room');
+}
+
+// Build full image URL
+function buildImageUrl(url) {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    const basePath = API_BASE_URL.split('/backend')[0] || '';
+    return basePath + url;
+}
+
+// Get images data for saving
+function getImagesForSave(formType) {
+    const coverImages = formType === 'edit'
+        ? [...existingImages.cover, ...pendingImages[formType].cover]
+        : pendingImages[formType].cover;
+    
+    const roomImages = formType === 'edit'
+        ? [...existingImages.room, ...pendingImages[formType].room]
+        : pendingImages[formType].room;
+    
+    return {
+        cover: coverImages,
+        room: roomImages,
+        toDelete: formType === 'edit' ? imagesToDelete : []
+    };
+}
+
+// Get pending files for upload
+function getPendingFilesForUpload(formType) {
+    const files = [];
+    
+    console.log('Getting pending files for:', formType);
+    console.log('Pending cover images:', pendingImages[formType].cover.length);
+    console.log('Pending room images:', pendingImages[formType].room.length);
+    
+    pendingImages[formType].cover.forEach((img, idx) => {
+        if (img.file) {
+            files.push({ file: img.file, category: 'cover', order: idx });
+        }
+    });
+    
+    pendingImages[formType].room.forEach((img, idx) => {
+        if (img.file) {
+            files.push({ file: img.file, category: 'room', order: idx });
+        }
+    });
+    
+    console.log('Total files to upload:', files.length);
+    return files;
 }
 
 // Quick edit modal for price update from dashboard
