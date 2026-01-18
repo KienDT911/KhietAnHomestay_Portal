@@ -1911,6 +1911,16 @@ html, body {
     border-right: 1px solid rgba(212, 184, 150, 0.4);
 }
 
+/* Desktop: Room header row (ID + Name) - display as block for vertical layout */
+.room-info-panel .room-header-row {
+    display: block;
+}
+
+/* Desktop: Room details row (Price + Guests + Image) - display as block for vertical layout */
+.room-info-panel .room-details-row {
+    display: block;
+}
+
 .room-info-panel .room-number {
     display: inline-block;
     background: var(--sage-green);
@@ -2519,6 +2529,37 @@ html, body {
 
 /* ===== Mobile Phone Responsive Fixes ===== */
 @media (max-width: 767px) {
+    /* Navigation Sidebar - Always visible on mobile with horizontal scroll */
+    .admin-sidebar {
+        display: flex !important;
+        width: 100% !important;
+        position: static !important;
+        padding: 0 !important;
+        height: auto !important;
+        min-height: auto !important;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .admin-sidebar.collapsed {
+        width: 100% !important;
+    }
+
+    .admin-sidebar .sidebar-toggle {
+        display: none !important;
+    }
+
+    .admin-sidebar.collapsed .menu-text {
+        opacity: 1 !important;
+        width: auto !important;
+        overflow: visible !important;
+    }
+
+    .admin-sidebar.collapsed .menu-item {
+        justify-content: flex-start !important;
+        padding: 10px 14px !important;
+    }
+
     /* Header - Keep all elements in one row */
     .header-container {
         flex-direction: row !important;
@@ -2812,18 +2853,80 @@ html, body {
         border-right: none !important;
         border-bottom: 1px solid rgba(212, 184, 150, 0.4);
         display: flex;
-        flex-wrap: wrap;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    /* First row: Room ID and Name */
+    .room-info-panel .room-header-row {
+        display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 8px;
+        width: 100%;
     }
 
     .room-info-panel .room-number {
         font-size: 10px;
         padding: 2px 6px;
+        flex-shrink: 0;
     }
 
     .room-info-panel h4 {
         font-size: 13px;
+        margin: 0;
+    }
+
+    /* Second row: Price, Guests, and Image */
+    .room-info-panel .room-details-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+    }
+
+    .room-info-panel .room-details {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .room-info-panel .room-details p {
+        margin: 0;
+        font-size: 12px;
+    }
+
+    .room-info-panel .room-image-placeholder {
+        width: 70px;
+        height: 70px;
+        margin-left: auto;
+        margin-bottom: 0;
+        flex-shrink: 0;
+        overflow: visible;
+    }
+
+    /* Edit icon positioned outside image on mobile - smaller size */
+    .room-info-panel .room-image-placeholder .image-controls {
+        position: absolute;
+        bottom: -4px;
+        right: -4px;
+        background: white;
+        border-radius: 50%;
+        padding: 1px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    }
+
+    .room-info-panel .room-image-placeholder .image-controls button {
+        width: 18px;
+        height: 18px;
+        min-width: 18px;
+        min-height: 18px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 9px;
+        border-radius: 50%;
     }
 
     .calendar-panel {
@@ -2957,6 +3060,25 @@ html, body {
 
     .rooms-quick-grid {
         grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    /* Extra small room info panel */
+    .room-info-panel .room-number {
+        font-size: 9px;
+        padding: 2px 5px;
+    }
+
+    .room-info-panel h4 {
+        font-size: 12px;
+    }
+
+    .room-info-panel .room-details p {
+        font-size: 11px;
+    }
+
+    .room-info-panel .room-image-placeholder {
+        width: 50px;
+        height: 50px;
     }
 }
 

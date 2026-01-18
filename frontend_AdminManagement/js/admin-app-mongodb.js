@@ -789,17 +789,23 @@ function createRoomCalendarRow(room, checkinDate, checkoutDate) {
     const row = document.createElement('div');
     row.className = 'room-calendar-row';
 
-    // Room info panel
+    // Room info panel - Two-row layout for mobile responsiveness
+    // Row 1: Room ID + Room Name
+    // Row 2: Price + Guests + Image (image aligned to the right)
     const infoPanel = document.createElement('div');
     infoPanel.className = 'room-info-panel';
     infoPanel.innerHTML = `
-        <span class="room-number">#${room.room_id || room.id}</span>
-        <h4>${room.name}</h4>
-        <div class="room-details">
-            <p>$${room.price}/night</p>
-            <p>${room.capacity || room.persons} guests</p>
+        <div class="room-header-row">
+            <span class="room-number">#${room.room_id || room.id}</span>
+            <h4>${room.name}</h4>
         </div>
-        <div class="room-image-placeholder"></div>
+        <div class="room-details-row">
+            <div class="room-details">
+                <p>$${room.price}/night</p>
+                <p>${room.capacity || room.persons} guests</p>
+            </div>
+            <div class="room-image-placeholder"></div>
+        </div>
     `;
     infoPanel.style.cursor = 'pointer';
     infoPanel.onclick = () => openQuickEditModal(room.room_id || room.id);
