@@ -40,8 +40,24 @@ client = None
 db = None
 rooms_collection = None
 fallback_rooms = []
-UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads')
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Detect Vercel environment (read-only filesystem)
+IS_VERCEL = os.environ.get('VERCEL', False) or os.environ.get('VERCEL_ENV', False)
+
+# Use /tmp for uploads on Vercel (only writable directory), local path otherwise
+if IS_VERCEL:
+    UPLOAD_FOLDER = '/tmp/uploads'
+else:
+    UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads')
+
+# Create upload folder only if not on Vercel's read-only filesystem, or use /tmp
+try:
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+except OSError as e:
+    print(f"⚠️  Could not create upload folder: {e}")
+    # Fallback to /tmp on any filesystem error
+    UPLOAD_FOLDER = '/tmp/uploads'
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # MongoDB Connection - Try Primary Source First
 print("🔄 Attempting MongoDB connection...")
@@ -49,6 +65,9 @@ json_file_path = os.path.join(os.path.dirname(__file__), 'rooms_data.json')
 
 try:
     uri = os.getenv('MONGODB_URI')
+    if not uri:
+        raise Exception("MONGODB_URI environment variable not set")
+    
     client = MongoClient(
         uri, 
         server_api=ServerApi('1'),
@@ -62,15 +81,16 @@ try:
     rooms_collection = db[os.getenv('MONGODB_COLLECTION')]
     print("✓ MongoDB connection successful - using live database")
     
-    # Sync MongoDB data to local JSON file for backup/fallback
-    try:
-        rooms_from_db = list(rooms_collection.find())
-        
-        with open(json_file_path, 'w', encoding='utf-8') as file:
-            json.dump(rooms_from_db, file, indent=4, ensure_ascii=False, cls=MongoJSONEncoder)
-        print(f"✓ Synced {len(rooms_from_db)} rooms to rooms_data.json")
-    except Exception as sync_error:
-        print(f"⚠️  Could not sync to JSON: {sync_error}")
+    # Sync MongoDB data to local JSON file for backup/fallback (skip on Vercel - read-only)
+    if not IS_VERCEL:
+        try:
+            rooms_from_db = list(rooms_collection.find())
+            
+            with open(json_file_path, 'w', encoding='utf-8') as file:
+                json.dump(rooms_from_db, file, indent=4, ensure_ascii=False, cls=MongoJSONEncoder)
+            print(f"✓ Synced {len(rooms_from_db)} rooms to rooms_data.json")
+        except Exception as sync_error:
+            print(f"⚠️  Could not sync to JSON: {sync_error}")
         
 except Exception as e:
     print(f"❌ MongoDB connection failed: {e}")
