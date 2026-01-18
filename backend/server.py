@@ -428,6 +428,8 @@ def update_room(room_id):
 def upload_room_image(room_id):
     """Upload an image for a room and save imageUrl to room document"""
     try:
+        print(f"📤 Starting legacy image upload for room: {room_id}")
+        
         if 'image' not in request.files:
             return jsonify({'success': False, 'error': 'No image file provided'}), 400
 
@@ -437,25 +439,48 @@ def upload_room_image(room_id):
 
         filename = secure_filename(file.filename)
         base, ext = os.path.splitext(filename)
+        ext = ext.lower()
         unique_name = f"{room_id}_{base}_{int(datetime.now(timezone.utc).timestamp())}"
+
+        # Read file content into memory ONCE for both Cloudinary and local storage
+        file_content = file.read()
+        file_size = len(file_content)
+        print(f"   File size: {file_size} bytes")
+        
+        if file_size == 0:
+            print("❌ Empty file content")
+            return jsonify({'success': False, 'error': 'Empty file - no content received'}), 400
 
         # Use Cloudinary if available (required for Vercel), otherwise local storage
         if USE_CLOUDINARY:
-            # Upload to Cloudinary
-            result = cloudinary.uploader.upload(
-                file,
-                public_id=f"khietan_homestay/{unique_name}",
-                folder="rooms",
-                resource_type="image",
-                overwrite=True
-            )
-            image_url = result['secure_url']
-            print(f"✓ Image uploaded to Cloudinary: {image_url}")
+            try:
+                print(f"   Uploading to Cloudinary...")
+                # Upload to Cloudinary using file bytes
+                result = cloudinary.uploader.upload(
+                    file_content,
+                    public_id=unique_name,
+                    folder="khietan_homestay/rooms",
+                    resource_type="image",
+                    overwrite=True
+                )
+                image_url = result['secure_url']
+                print(f"✓ Image uploaded to Cloudinary: {image_url}")
+            except Exception as cloud_err:
+                print(f"❌ Cloudinary upload failed: {cloud_err}")
+                # Fallback to local storage if Cloudinary fails
+                save_path = os.path.join(UPLOAD_FOLDER, f"{unique_name}{ext}")
+                with open(save_path, 'wb') as f:
+                    f.write(file_content)
+                image_url = f"/backend/static/uploads/{unique_name}{ext}"
+                print(f"✓ Image saved locally (fallback): {image_url}")
         else:
             # Local storage (for development)
             save_path = os.path.join(UPLOAD_FOLDER, f"{unique_name}{ext}")
-            file.save(save_path)
+            print(f"   Saving to local path: {save_path}")
+            with open(save_path, 'wb') as f:
+                f.write(file_content)
             image_url = f"/backend/static/uploads/{unique_name}{ext}"
+            print(f"✓ Image saved locally: {image_url}")
 
         # Update room document
         if rooms_collection is None:
@@ -549,37 +574,70 @@ def delete_room_image(room_id):
 def upload_room_image_multi(room_id):
     """Upload an image for a room with category (cover/room)"""
     try:
+        print(f"📤 Starting image upload for room: {room_id}")
+        print(f"   USE_CLOUDINARY: {USE_CLOUDINARY}")
+        print(f"   CLOUDINARY_AVAILABLE: {CLOUDINARY_AVAILABLE}")
+        
         if 'image' not in request.files:
+            print("❌ No image file in request")
             return jsonify({'success': False, 'error': 'No image file provided'}), 400
 
         file = request.files['image']
         if file.filename == '':
+            print("❌ Empty filename")
             return jsonify({'success': False, 'error': 'Empty filename'}), 400
 
         category = request.form.get('category', 'room')  # 'cover' or 'room'
         order = int(request.form.get('order', 0))
+        
+        print(f"   Filename: {file.filename}, Category: {category}, Order: {order}")
 
         filename = secure_filename(file.filename)
         base, ext = os.path.splitext(filename)
+        # Ensure extension is lowercase
+        ext = ext.lower()
         unique_name = f"{category}_{room_id}_{base}_{int(datetime.now(timezone.utc).timestamp())}_{order}"
+
+        # Read file content into memory ONCE for both Cloudinary and local storage
+        file_content = file.read()
+        file_size = len(file_content)
+        print(f"   File size: {file_size} bytes")
+        
+        if file_size == 0:
+            print("❌ Empty file content")
+            return jsonify({'success': False, 'error': 'Empty file - no content received'}), 400
 
         # Use Cloudinary if available (required for Vercel), otherwise local storage
         if USE_CLOUDINARY:
-            # Upload to Cloudinary
-            upload_result = cloudinary.uploader.upload(
-                file,
-                public_id=f"khietan_homestay/{unique_name}",
-                folder=f"rooms/{room_id}/{category}",
-                resource_type="image",
-                overwrite=True
-            )
-            image_url = upload_result['secure_url']
-            print(f"✓ Image uploaded to Cloudinary: {image_url}")
+            try:
+                print(f"   Uploading to Cloudinary...")
+                # Upload to Cloudinary using file bytes
+                upload_result = cloudinary.uploader.upload(
+                    file_content,
+                    public_id=unique_name,
+                    folder=f"khietan_homestay/rooms/{room_id}/{category}",
+                    resource_type="image",
+                    overwrite=True
+                )
+                image_url = upload_result['secure_url']
+                print(f"✓ Image uploaded to Cloudinary: {image_url}")
+            except Exception as cloud_err:
+                print(f"❌ Cloudinary upload failed: {cloud_err}")
+                # Fallback to local storage if Cloudinary fails
+                print("   Falling back to local storage...")
+                save_path = os.path.join(UPLOAD_FOLDER, f"{unique_name}{ext}")
+                with open(save_path, 'wb') as f:
+                    f.write(file_content)
+                image_url = f"/backend/static/uploads/{unique_name}{ext}"
+                print(f"✓ Image saved locally: {image_url}")
         else:
             # Local storage (for development)
             save_path = os.path.join(UPLOAD_FOLDER, f"{unique_name}{ext}")
-            file.save(save_path)
+            print(f"   Saving to local path: {save_path}")
+            with open(save_path, 'wb') as f:
+                f.write(file_content)
             image_url = f"/backend/static/uploads/{unique_name}{ext}"
+            print(f"✓ Image saved locally: {image_url}")
 
         # Update room document - add to images array
         if rooms_collection is None:
