@@ -834,11 +834,42 @@ function createRoomCalendarRow(room, checkinDate, checkoutDate) {
             imageUrl = room.imageUrl;
         }
 
+        // Function to show add button (for admin) or placeholder icon
+        function showAddImageButton() {
+            placeholder.innerHTML = ''; // Clear any failed image
+            if (role === 'admin') {
+                const uploadBtn = document.createElement('button');
+                uploadBtn.type = 'button';
+                uploadBtn.className = 'upload-icon';
+                uploadBtn.title = 'Add room images';
+                uploadBtn.textContent = '+';
+
+                uploadBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    editRoom(roomId);
+                });
+
+                placeholder.appendChild(uploadBtn);
+            } else {
+                // For non-admin, show a placeholder icon
+                const placeholderIcon = document.createElement('span');
+                placeholderIcon.className = 'no-image-icon';
+                placeholderIcon.textContent = '🏠';
+                placeholder.appendChild(placeholderIcon);
+            }
+        }
+
         if (imageUrl) {
             const img = document.createElement('img');
             img.className = 'room-image';
             img.src = (imageUrl.startsWith('http') ? imageUrl : (basePath + imageUrl));
             img.alt = room.name;
+            
+            // Handle image load error - show add button instead
+            img.onerror = function() {
+                showAddImageButton();
+            };
+            
             img.addEventListener('click', function(e) { e.stopPropagation(); openImageViewer(img.src); });
             placeholder.appendChild(img);
 
@@ -861,20 +892,9 @@ function createRoomCalendarRow(room, checkinDate, checkoutDate) {
                 controls.appendChild(editImagesBtn);
                 placeholder.appendChild(controls);
             }
-        } else if (role === 'admin') {
-            // No image yet - show button to open Edit modal for adding images
-            const uploadBtn = document.createElement('button');
-            uploadBtn.type = 'button';
-            uploadBtn.className = 'upload-icon';
-            uploadBtn.title = 'Add room images';
-            uploadBtn.textContent = '+';
-
-            uploadBtn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                editRoom(roomId);
-            });
-
-            placeholder.appendChild(uploadBtn);
+        } else {
+            // No image - show add button
+            showAddImageButton();
         }
     })();
 
@@ -2025,6 +2045,44 @@ function resetImageGalleries(formType) {
     }
     renderImageGallery(formType, 'cover');
     renderImageGallery(formType, 'room');
+}
+
+// Clear all images with confirmation
+function clearAllImages(formType) {
+    const hasCoverImages = formType === 'edit' 
+        ? (existingImages.cover.length > 0 || pendingImages.edit.cover.length > 0)
+        : pendingImages.room.cover.length > 0;
+    const hasRoomImages = formType === 'edit'
+        ? (existingImages.room.length > 0 || pendingImages.edit.room.length > 0)
+        : pendingImages.room.room.length > 0;
+    
+    if (!hasCoverImages && !hasRoomImages) {
+        alert('No images to clear.');
+        return;
+    }
+    
+    if (!confirm('Are you sure you want to clear ALL images (cover and room)?')) {
+        return;
+    }
+    
+    if (formType === 'edit') {
+        // Mark all existing images for deletion
+        existingImages.cover.forEach(img => {
+            if (img.originalUrl && !imagesToDelete.includes(img.originalUrl)) {
+                imagesToDelete.push(img.originalUrl);
+            }
+        });
+        existingImages.room.forEach(img => {
+            if (img.originalUrl && !imagesToDelete.includes(img.originalUrl)) {
+                imagesToDelete.push(img.originalUrl);
+            }
+        });
+        console.log('Images marked for deletion:', imagesToDelete.length);
+    }
+    
+    // Reset all image arrays
+    resetImageGalleries(formType);
+    console.log(`✓ All images cleared for ${formType} form`);
 }
 
 // Setup existing images for edit form

@@ -3163,6 +3163,20 @@ html, body {
     border-color: var(--dark-green);
 }
 
+/* No image placeholder icon (for non-admin users) */
+.no-image-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    background: var(--light-sage);
+    color: var(--sage-green);
+    border: 1px solid var(--border-color);
+    font-size: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
 /* ===== Image Upload Container for Forms ===== */
 .image-upload-container {
     display: flex;
@@ -3238,6 +3252,29 @@ html, body {
 .btn-small {
     padding: 6px 12px;
     font-size: 12px;
+}
+
+/* Label with action button */
+.label-with-action {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.btn-clear-all {
+    padding: 4px 10px;
+    font-size: 11px;
+    background: #3d5a40;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-clear-all:hover {
+    background: #c82333;
 }
 
 /* ===== Multi-Image Gallery Styles ===== */
