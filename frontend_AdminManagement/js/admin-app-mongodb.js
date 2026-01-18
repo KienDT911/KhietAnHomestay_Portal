@@ -814,14 +814,18 @@ function createRoomCalendarRow(room, checkinDate, checkoutDate) {
 
         const basePath = API_BASE_URL.split('/backend')[0] || '';
 
-        // Get image URL - prefer imageUrl, then first cover image, then first room image
-        let imageUrl = room.imageUrl;
-        if (!imageUrl && room.images) {
+        // Get image URL - prefer first cover image, then first room image, then legacy imageUrl
+        let imageUrl = null;
+        if (room.images) {
             if (room.images.cover && room.images.cover.length > 0) {
                 imageUrl = room.images.cover[0];
             } else if (room.images.room && room.images.room.length > 0) {
                 imageUrl = room.images.room[0];
             }
+        }
+        // Fallback to legacy imageUrl only if no images in the new structure
+        if (!imageUrl && room.imageUrl) {
+            imageUrl = room.imageUrl;
         }
 
         if (imageUrl) {

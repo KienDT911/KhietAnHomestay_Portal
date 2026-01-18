@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
@@ -8,7 +8,18 @@ from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 import os
 import json
+import io
 from datetime import datetime, timezone
+
+# Cloudinary for cloud image storage (works on Vercel)
+try:
+    import cloudinary
+    import cloudinary.uploader
+    import cloudinary.api
+    CLOUDINARY_AVAILABLE = True
+except ImportError:
+    CLOUDINARY_AVAILABLE = False
+    print("⚠️ Cloudinary not installed. Image uploads will use local storage.")
 
 # Custom JSON encoder to handle datetime and ObjectId
 class MongoJSONEncoder(json.JSONEncoder):
@@ -44,6 +55,25 @@ fallback_rooms = []
 # Detect Vercel environment (read-only filesystem)
 IS_VERCEL = os.environ.get('VERCEL', False) or os.environ.get('VERCEL_ENV', False)
 
+# Configure Cloudinary if credentials are available
+USE_CLOUDINARY = False
+if CLOUDINARY_AVAILABLE:
+    cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME')
+    api_key = os.getenv('CLOUDINARY_API_KEY')
+    api_secret = os.getenv('CLOUDINARY_API_SECRET')
+    
+    if cloud_name and api_key and api_secret:
+        cloudinary.config(
+            cloud_name=cloud_name,
+            api_key=api_key,
+            api_secret=api_secret,
+            secure=True
+        )
+        USE_CLOUDINARY = True
+        print(f"✓ Cloudinary configured (cloud: {cloud_name})")
+    else:
+        print("⚠️ Cloudinary credentials not found in environment variables")
+
 # Use /tmp for uploads on Vercel (only writable directory), local path otherwise
 if IS_VERCEL:
     UPLOAD_FOLDER = '/tmp/uploads'
@@ -57,7 +87,10 @@ except OSError as e:
     print(f"⚠️  Could not create upload folder: {e}")
     # Fallback to /tmp on any filesystem error
     UPLOAD_FOLDER = '/tmp/uploads'
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    try:
+        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    except:
+        pass  # On Vercel, this might also fail but Cloudinary will handle uploads
 
 # MongoDB Connection - Try Primary Source First
 print("🔄 Attempting MongoDB connection...")
@@ -403,14 +436,26 @@ def upload_room_image(room_id):
             return jsonify({'success': False, 'error': 'Empty filename'}), 400
 
         filename = secure_filename(file.filename)
-        # Make filename unique
         base, ext = os.path.splitext(filename)
-        unique_name = f"{base}_{int(datetime.now(timezone.utc).timestamp())}{ext}"
-        save_path = os.path.join(UPLOAD_FOLDER, unique_name)
-        file.save(save_path)
+        unique_name = f"{room_id}_{base}_{int(datetime.now(timezone.utc).timestamp())}"
 
-        # Build public URL path (matches static_url_path='/backend/static')
-        image_url = f"/backend/static/uploads/{unique_name}"
+        # Use Cloudinary if available (required for Vercel), otherwise local storage
+        if USE_CLOUDINARY:
+            # Upload to Cloudinary
+            result = cloudinary.uploader.upload(
+                file,
+                public_id=f"khietan_homestay/{unique_name}",
+                folder="rooms",
+                resource_type="image",
+                overwrite=True
+            )
+            image_url = result['secure_url']
+            print(f"✓ Image uploaded to Cloudinary: {image_url}")
+        else:
+            # Local storage (for development)
+            save_path = os.path.join(UPLOAD_FOLDER, f"{unique_name}{ext}")
+            file.save(save_path)
+            image_url = f"/backend/static/uploads/{unique_name}{ext}"
 
         # Update room document
         if rooms_collection is None:
@@ -515,14 +560,26 @@ def upload_room_image_multi(room_id):
         order = int(request.form.get('order', 0))
 
         filename = secure_filename(file.filename)
-        # Make filename unique with category
         base, ext = os.path.splitext(filename)
-        unique_name = f"{category}_{base}_{int(datetime.now(timezone.utc).timestamp())}_{order}{ext}"
-        save_path = os.path.join(UPLOAD_FOLDER, unique_name)
-        file.save(save_path)
+        unique_name = f"{category}_{room_id}_{base}_{int(datetime.now(timezone.utc).timestamp())}_{order}"
 
-        # Build public URL path
-        image_url = f"/backend/static/uploads/{unique_name}"
+        # Use Cloudinary if available (required for Vercel), otherwise local storage
+        if USE_CLOUDINARY:
+            # Upload to Cloudinary
+            upload_result = cloudinary.uploader.upload(
+                file,
+                public_id=f"khietan_homestay/{unique_name}",
+                folder=f"rooms/{room_id}/{category}",
+                resource_type="image",
+                overwrite=True
+            )
+            image_url = upload_result['secure_url']
+            print(f"✓ Image uploaded to Cloudinary: {image_url}")
+        else:
+            # Local storage (for development)
+            save_path = os.path.join(UPLOAD_FOLDER, f"{unique_name}{ext}")
+            file.save(save_path)
+            image_url = f"/backend/static/uploads/{unique_name}{ext}"
 
         # Update room document - add to images array
         if rooms_collection is None:
@@ -680,11 +737,11 @@ def delete_room_image_multi(room_id, image_id):
         image_found = False
         image_url_to_delete = None
         
-        # image_id could be a filename like "room_xxx.jpg"
+        # image_id could be a filename like "room_xxx.jpg" or a full Cloudinary URL
         for category in ['cover', 'room']:
             if category in images:
                 for url in images[category]:
-                    # Match if URL ends with the filename
+                    # Match if URL ends with the filename, contains it, or exact match
                     if url.endswith(image_id) or image_id in url or url == image_id:
                         image_url_to_delete = url
                         images[category].remove(url)
@@ -697,15 +754,35 @@ def delete_room_image_multi(room_id, image_id):
         if not image_found:
             return jsonify({'success': False, 'error': 'Image not found'}), 404
 
-        # Delete actual file if local
-        if image_url_to_delete and '/static/uploads/' in image_url_to_delete:
-            filename = image_url_to_delete.split('/static/uploads/')[-1]
-            file_path = os.path.join(UPLOAD_FOLDER, filename)
-            try:
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-            except Exception as e:
-                print(f"⚠️ Failed removing file {file_path}: {e}")
+        # Delete actual file - handle both Cloudinary and local storage
+        if image_url_to_delete:
+            if 'cloudinary.com' in image_url_to_delete and USE_CLOUDINARY:
+                # Extract public_id from Cloudinary URL and delete
+                try:
+                    # URL format: https://res.cloudinary.com/cloud_name/image/upload/v123/folder/public_id.ext
+                    parts = image_url_to_delete.split('/upload/')
+                    if len(parts) > 1:
+                        public_id_with_ext = parts[1].split('?')[0]  # Remove query params
+                        # Remove version prefix (v123456/)
+                        if '/' in public_id_with_ext:
+                            path_parts = public_id_with_ext.split('/')
+                            if path_parts[0].startswith('v') and path_parts[0][1:].isdigit():
+                                public_id_with_ext = '/'.join(path_parts[1:])
+                        # Remove extension
+                        public_id = os.path.splitext(public_id_with_ext)[0]
+                        cloudinary.uploader.destroy(public_id)
+                        print(f"✓ Deleted from Cloudinary: {public_id}")
+                except Exception as e:
+                    print(f"⚠️ Failed removing from Cloudinary: {e}")
+            elif '/static/uploads/' in image_url_to_delete:
+                # Local file deletion
+                filename = image_url_to_delete.split('/static/uploads/')[-1]
+                file_path = os.path.join(UPLOAD_FOLDER, filename)
+                try:
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                except Exception as e:
+                    print(f"⚠️ Failed removing file {file_path}: {e}")
 
         # Update room document
         if rooms_collection is None:
@@ -730,12 +807,20 @@ def update_room_images_order(room_id):
         data = request.get_json()
         images = data.get('images', {'cover': [], 'room': []})
         
+        # Sync legacy imageUrl field with first cover image (for backward compatibility)
+        new_image_url = images.get('cover', [None])[0] if images.get('cover') else None
+        
         if rooms_collection is None:
             room = next((r for r in fallback_rooms if r.get('_id') == room_id), None)
             if not room:
                 return jsonify({'success': False, 'error': 'Room not found'}), 404
             
             room['images'] = images
+            # Sync imageUrl with first cover image
+            if new_image_url:
+                room['imageUrl'] = new_image_url
+            else:
+                room.pop('imageUrl', None)  # Remove legacy field if no cover
             room['updated_at'] = datetime.now().isoformat()
             
             with open(json_file_path, 'w', encoding='utf-8') as f:
@@ -750,9 +835,20 @@ def update_room_images_order(room_id):
                 except:
                     return jsonify({'success': False, 'error': 'Room not found'}), 404
 
-            result = rooms_collection.update_one(filter_id, {
-                '$set': {'images': images, 'updated_at': datetime.now(timezone.utc)}
-            })
+            # Build update operation - sync imageUrl with first cover
+            update_fields = {
+                'images': images, 
+                'updated_at': datetime.now(timezone.utc)
+            }
+            if new_image_url:
+                update_fields['imageUrl'] = new_image_url
+                result = rooms_collection.update_one(filter_id, {'$set': update_fields})
+            else:
+                # Remove legacy imageUrl if no cover images
+                result = rooms_collection.update_one(filter_id, {
+                    '$set': update_fields,
+                    '$unset': {'imageUrl': ''}
+                })
 
             if result.matched_count == 0:
                 return jsonify({'success': False, 'error': 'Room not found'}), 404
