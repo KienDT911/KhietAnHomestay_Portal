@@ -572,7 +572,7 @@ def delete_room_image(room_id):
 
 @app.route('/backend/api/admin/rooms/<room_id>/images', methods=['POST'])
 def upload_room_image_multi(room_id):
-    """Upload an image for a room with category (cover/room)"""
+    """Upload an image for a room with category (cover/bedroom/bathroom/exterior)"""
     try:
         print(f"📤 Starting image upload for room: {room_id}")
         print(f"   USE_CLOUDINARY: {USE_CLOUDINARY}")
@@ -587,7 +587,11 @@ def upload_room_image_multi(room_id):
             print("❌ Empty filename")
             return jsonify({'success': False, 'error': 'Empty filename'}), 400
 
-        category = request.form.get('category', 'room')  # 'cover' or 'room'
+        # Valid categories: cover, bedroom, bathroom, exterior
+        category = request.form.get('category', 'bedroom')  # default to bedroom
+        valid_categories = ['cover', 'bedroom', 'bathroom', 'exterior']
+        if category not in valid_categories:
+            category = 'bedroom'  # fallback
         order = int(request.form.get('order', 0))
         
         print(f"   Filename: {file.filename}, Category: {category}, Order: {order}")
@@ -646,7 +650,7 @@ def upload_room_image_multi(room_id):
                 return jsonify({'success': False, 'error': 'Room not found'}), 404
             
             if 'images' not in room:
-                room['images'] = {'cover': [], 'room': []}
+                room['images'] = {'cover': [], 'bedroom': [], 'bathroom': [], 'exterior': []}
             if category not in room['images']:
                 room['images'][category] = []
             room['images'][category].append(image_url)
@@ -675,7 +679,7 @@ def upload_room_image_multi(room_id):
             # Ensure the images structure exists first
             if not room.get('images'):
                 rooms_collection.update_one(filter_id, {
-                    '$set': {'images': {'cover': [], 'room': []}}
+                    '$set': {'images': {'cover': [], 'bedroom': [], 'bathroom': [], 'exterior': []}}
                 })
             elif category not in room.get('images', {}):
                 rooms_collection.update_one(filter_id, {
@@ -715,7 +719,8 @@ def reorder_room_images(room_id):
     
     try:
         data = request.get_json()
-        category = data.get('category', 'room')  # 'cover' or 'room'
+        # Valid categories: cover, bedroom, bathroom, exterior
+        category = data.get('category', 'bedroom')
         new_order = data.get('images', [])  # Array of image URLs in new order
         
         print(f"🔄 Reordering {category} images for room {room_id}: {len(new_order)} images")
@@ -726,7 +731,7 @@ def reorder_room_images(room_id):
                 return jsonify({'success': False, 'error': 'Room not found'}), 404
             
             if 'images' not in room:
-                room['images'] = {'cover': [], 'room': []}
+                room['images'] = {'cover': [], 'bedroom': [], 'bathroom': [], 'exterior': []}
             room['images'][category] = new_order
             room['updated_at'] = datetime.now().isoformat()
             
@@ -791,12 +796,12 @@ def delete_room_image_multi(room_id, image_id):
             return jsonify({'success': False, 'error': 'Room not found'}), 404
 
         # Find and remove the image from arrays
-        images = target_room.get('images', {'cover': [], 'room': []})
+        images = target_room.get('images', {'cover': [], 'bedroom': [], 'bathroom': [], 'exterior': []})
         image_found = False
         image_url_to_delete = None
         
-        # image_id could be a filename like "room_xxx.jpg" or a full Cloudinary URL
-        for category in ['cover', 'room']:
+        # image_id could be a filename like "bedroom_xxx.jpg" or a full Cloudinary URL
+        for category in ['cover', 'bedroom', 'bathroom', 'exterior']:
             if category in images:
                 for url in images[category]:
                     # Match if URL ends with the filename, contains it, or exact match
@@ -804,7 +809,7 @@ def delete_room_image_multi(room_id, image_id):
                         image_url_to_delete = url
                         images[category].remove(url)
                         image_found = True
-                        print(f"✓ Found and removed image: {url}")
+                        print(f"✓ Found and removed image from {category}: {url}")
                         break
             if image_found:
                 break
@@ -863,7 +868,12 @@ def update_room_images_order(room_id):
     """Update room images order/structure"""
     try:
         data = request.get_json()
-        images = data.get('images', {'cover': [], 'room': []})
+        images = data.get('images', {'cover': [], 'bedroom': [], 'bathroom': [], 'exterior': []})
+        
+        # Ensure all categories exist
+        for cat in ['cover', 'bedroom', 'bathroom', 'exterior']:
+            if cat not in images:
+                images[cat] = []
         
         # Sync legacy imageUrl field with first cover image (for backward compatibility)
         new_image_url = images.get('cover', [None])[0] if images.get('cover') else None

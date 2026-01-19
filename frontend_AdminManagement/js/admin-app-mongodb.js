@@ -820,12 +820,19 @@ function createRoomCalendarRow(room, checkinDate, checkoutDate) {
 
         const basePath = API_BASE_URL.split('/backend')[0] || '';
 
-        // Get image URL - prefer first cover image, then first room image, then legacy imageUrl
+        // Get image URL - prefer first cover image, then bedroom, bathroom, exterior, then legacy imageUrl
         let imageUrl = null;
         if (room.images) {
             if (room.images.cover && room.images.cover.length > 0) {
                 imageUrl = room.images.cover[0];
+            } else if (room.images.bedroom && room.images.bedroom.length > 0) {
+                imageUrl = room.images.bedroom[0];
+            } else if (room.images.bathroom && room.images.bathroom.length > 0) {
+                imageUrl = room.images.bathroom[0];
+            } else if (room.images.exterior && room.images.exterior.length > 0) {
+                imageUrl = room.images.exterior[0];
             } else if (room.images.room && room.images.room.length > 0) {
+                // Legacy fallback for old 'room' category
                 imageUrl = room.images.room[0];
             }
         }
@@ -1117,11 +1124,13 @@ async function uploadRoomImageWithCategory(roomId, file, category, order) {
 }
 
 // Update all images order in database (using existing /images PUT endpoint)
-async function updateAllImagesOrder(roomId, coverUrls, roomUrls) {
+async function updateAllImagesOrder(roomId, coverUrls, bedroomUrls, bathroomUrls, exteriorUrls) {
     try {
         console.log('📤 Saving image order for room:', roomId);
         console.log('Cover URLs:', coverUrls);
-        console.log('Room URLs:', roomUrls);
+        console.log('Bedroom URLs:', bedroomUrls);
+        console.log('Bathroom URLs:', bathroomUrls);
+        console.log('Exterior URLs:', exteriorUrls);
         
         const resp = await fetch(`${API_BASE_URL}/rooms/${roomId}/images`, {
             method: 'PUT',
@@ -1131,7 +1140,9 @@ async function updateAllImagesOrder(roomId, coverUrls, roomUrls) {
             body: JSON.stringify({
                 images: {
                     cover: coverUrls,
-                    room: roomUrls
+                    bedroom: bedroomUrls,
+                    bathroom: bathroomUrls,
+                    exterior: exteriorUrls
                 }
             })
         });
@@ -1636,15 +1647,22 @@ function editRoom(id) {
             
             // Save the final image order ONLY if no new uploads happened
             // (If we uploaded, the order is already correct in DB - don't overwrite with stale data)
-            if (pendingFiles.length === 0 && (existingImages.cover.length > 0 || existingImages.room.length > 0)) {
+            const hasExistingImages = existingImages.cover.length > 0 || 
+                existingImages.bedroom.length > 0 || 
+                existingImages.bathroom.length > 0 || 
+                existingImages.exterior.length > 0;
+            
+            if (pendingFiles.length === 0 && hasExistingImages) {
                 submitButton.textContent = 'Saving order...';
                 try {
                     // Get final order of existing images (URLs only)
                     const coverUrls = existingImages.cover.map(img => img.originalUrl);
-                    const roomUrls = existingImages.room.map(img => img.originalUrl);
+                    const bedroomUrls = existingImages.bedroom.map(img => img.originalUrl);
+                    const bathroomUrls = existingImages.bathroom.map(img => img.originalUrl);
+                    const exteriorUrls = existingImages.exterior.map(img => img.originalUrl);
                     
                     // Use single endpoint to save all image orders
-                    await updateAllImagesOrder(id, coverUrls, roomUrls);
+                    await updateAllImagesOrder(id, coverUrls, bedroomUrls, bathroomUrls, exteriorUrls);
                     console.log('✓ Image order saved');
                 } catch (orderErr) {
                     console.error('Failed to save image order:', orderErr);
@@ -1727,14 +1745,16 @@ let currentEditRoomId = null;
 
 // Store pending images for upload (only used for NEW rooms)
 let pendingImages = {
-    room: { cover: [], room: [] },
-    edit: { cover: [], room: [] }
+    room: { cover: [], bedroom: [], bathroom: [], exterior: [] },
+    edit: { cover: [], bedroom: [], bathroom: [], exterior: [] }
 };
 
 // Store existing images for edit mode
 let existingImages = {
     cover: [],
-    room: []
+    bedroom: [],
+    bathroom: [],
+    exterior: []
 };
 
 // Images marked for deletion
@@ -1744,11 +1764,15 @@ let imagesToDelete = [];
 document.addEventListener('DOMContentLoaded', function() {
     // Setup Add Room galleries
     setupImageGallery('room-cover-gallery', 'room-cover-dropzone', 'room', 'cover');
-    setupImageGallery('room-images-gallery', 'room-images-dropzone', 'room', 'room');
+    setupImageGallery('room-bedroom-gallery', 'room-bedroom-dropzone', 'room', 'bedroom');
+    setupImageGallery('room-bathroom-gallery', 'room-bathroom-dropzone', 'room', 'bathroom');
+    setupImageGallery('room-exterior-gallery', 'room-exterior-dropzone', 'room', 'exterior');
     
     // Setup Edit Room galleries
     setupImageGallery('edit-room-cover-gallery', 'edit-room-cover-dropzone', 'edit', 'cover');
-    setupImageGallery('edit-room-images-gallery', 'edit-room-images-dropzone', 'edit', 'room');
+    setupImageGallery('edit-room-bedroom-gallery', 'edit-room-bedroom-dropzone', 'edit', 'bedroom');
+    setupImageGallery('edit-room-bathroom-gallery', 'edit-room-bathroom-dropzone', 'edit', 'bathroom');
+    setupImageGallery('edit-room-exterior-gallery', 'edit-room-exterior-dropzone', 'edit', 'exterior');
 });
 
 // Setup a single image gallery with drag-drop
@@ -1847,9 +1871,23 @@ function readFileAsDataURL(file) {
 
 // Render image gallery
 function renderImageGallery(formType, category) {
-    const galleryId = formType === 'edit' 
-        ? (category === 'cover' ? 'edit-room-cover-gallery' : 'edit-room-images-gallery')
-        : (category === 'cover' ? 'room-cover-gallery' : 'room-images-gallery');
+    // Map category to gallery IDs
+    const galleryIdMap = {
+        edit: {
+            cover: 'edit-room-cover-gallery',
+            bedroom: 'edit-room-bedroom-gallery',
+            bathroom: 'edit-room-bathroom-gallery',
+            exterior: 'edit-room-exterior-gallery'
+        },
+        room: {
+            cover: 'room-cover-gallery',
+            bedroom: 'room-bedroom-gallery',
+            bathroom: 'room-bathroom-gallery',
+            exterior: 'room-exterior-gallery'
+        }
+    };
+    
+    const galleryId = galleryIdMap[formType]?.[category];
     
     const gallery = document.getElementById(galleryId);
     if (!gallery) return;
@@ -2038,45 +2076,54 @@ function reorderImages(fromIndex, toIndex, formType, category) {
 
 // Reset image galleries
 function resetImageGalleries(formType) {
-    pendingImages[formType] = { cover: [], room: [] };
+    pendingImages[formType] = { cover: [], bedroom: [], bathroom: [], exterior: [] };
     if (formType === 'edit') {
-        existingImages = { cover: [], room: [] };
+        existingImages = { cover: [], bedroom: [], bathroom: [], exterior: [] };
         imagesToDelete = [];
     }
     renderImageGallery(formType, 'cover');
-    renderImageGallery(formType, 'room');
+    renderImageGallery(formType, 'bedroom');
+    renderImageGallery(formType, 'bathroom');
+    renderImageGallery(formType, 'exterior');
 }
 
 // Clear all images with confirmation
 function clearAllImages(formType) {
-    const hasCoverImages = formType === 'edit' 
-        ? (existingImages.cover.length > 0 || pendingImages.edit.cover.length > 0)
-        : pendingImages.room.cover.length > 0;
-    const hasRoomImages = formType === 'edit'
-        ? (existingImages.room.length > 0 || pendingImages.edit.room.length > 0)
-        : pendingImages.room.room.length > 0;
+    const categories = ['cover', 'bedroom', 'bathroom', 'exterior'];
+    let hasAnyImages = false;
     
-    if (!hasCoverImages && !hasRoomImages) {
+    for (const cat of categories) {
+        if (formType === 'edit') {
+            if (existingImages[cat].length > 0 || pendingImages.edit[cat].length > 0) {
+                hasAnyImages = true;
+                break;
+            }
+        } else {
+            if (pendingImages.room[cat].length > 0) {
+                hasAnyImages = true;
+                break;
+            }
+        }
+    }
+    
+    if (!hasAnyImages) {
         alert('No images to clear.');
         return;
     }
     
-    if (!confirm('Are you sure you want to clear ALL images (cover and room)?')) {
+    if (!confirm('Are you sure you want to clear ALL images (cover, bedroom, bathroom, exterior)?')) {
         return;
     }
     
     if (formType === 'edit') {
         // Mark all existing images for deletion
-        existingImages.cover.forEach(img => {
-            if (img.originalUrl && !imagesToDelete.includes(img.originalUrl)) {
-                imagesToDelete.push(img.originalUrl);
-            }
-        });
-        existingImages.room.forEach(img => {
-            if (img.originalUrl && !imagesToDelete.includes(img.originalUrl)) {
-                imagesToDelete.push(img.originalUrl);
-            }
-        });
+        for (const cat of categories) {
+            existingImages[cat].forEach(img => {
+                if (img.originalUrl && !imagesToDelete.includes(img.originalUrl)) {
+                    imagesToDelete.push(img.originalUrl);
+                }
+            });
+        }
         console.log('Images marked for deletion:', imagesToDelete.length);
     }
     
@@ -2091,7 +2138,7 @@ function setupEditRoomImages(room) {
     
     // Load existing images from room data
     if (room.images) {
-        // New format: room.images = { cover: [...], room: [...] }
+        // New format: room.images = { cover: [...], bedroom: [...], bathroom: [...], exterior: [...] }
         existingImages.cover = (room.images.cover || []).map((url, idx) => ({
             id: `existing_cover_${idx}`,
             url: buildImageUrl(url),
@@ -2099,8 +2146,22 @@ function setupEditRoomImages(room) {
             isNew: false,
             originalUrl: url
         }));
-        existingImages.room = (room.images.room || []).map((url, idx) => ({
-            id: `existing_room_${idx}`,
+        existingImages.bedroom = (room.images.bedroom || room.images.room || []).map((url, idx) => ({
+            id: `existing_bedroom_${idx}`,
+            url: buildImageUrl(url),
+            preview: buildImageUrl(url),
+            isNew: false,
+            originalUrl: url
+        }));
+        existingImages.bathroom = (room.images.bathroom || []).map((url, idx) => ({
+            id: `existing_bathroom_${idx}`,
+            url: buildImageUrl(url),
+            preview: buildImageUrl(url),
+            isNew: false,
+            originalUrl: url
+        }));
+        existingImages.exterior = (room.images.exterior || []).map((url, idx) => ({
+            id: `existing_exterior_${idx}`,
             url: buildImageUrl(url),
             preview: buildImageUrl(url),
             isNew: false,
@@ -2118,7 +2179,9 @@ function setupEditRoomImages(room) {
     }
     
     renderImageGallery('edit', 'cover');
-    renderImageGallery('edit', 'room');
+    renderImageGallery('edit', 'bedroom');
+    renderImageGallery('edit', 'bathroom');
+    renderImageGallery('edit', 'exterior');
 }
 
 // Build full image URL
@@ -2135,13 +2198,23 @@ function getImagesForSave(formType) {
         ? [...existingImages.cover, ...pendingImages[formType].cover]
         : pendingImages[formType].cover;
     
-    const roomImages = formType === 'edit'
-        ? [...existingImages.room, ...pendingImages[formType].room]
-        : pendingImages[formType].room;
+    const bedroomImages = formType === 'edit'
+        ? [...existingImages.bedroom, ...pendingImages[formType].bedroom]
+        : pendingImages[formType].bedroom;
+    
+    const bathroomImages = formType === 'edit'
+        ? [...existingImages.bathroom, ...pendingImages[formType].bathroom]
+        : pendingImages[formType].bathroom;
+    
+    const exteriorImages = formType === 'edit'
+        ? [...existingImages.exterior, ...pendingImages[formType].exterior]
+        : pendingImages[formType].exterior;
     
     return {
         cover: coverImages,
-        room: roomImages,
+        bedroom: bedroomImages,
+        bathroom: bathroomImages,
+        exterior: exteriorImages,
         toDelete: formType === 'edit' ? imagesToDelete : []
     };
 }
@@ -2149,22 +2222,18 @@ function getImagesForSave(formType) {
 // Get pending files for upload
 function getPendingFilesForUpload(formType) {
     const files = [];
+    const categories = ['cover', 'bedroom', 'bathroom', 'exterior'];
     
     console.log('Getting pending files for:', formType);
-    console.log('Pending cover images:', pendingImages[formType].cover.length);
-    console.log('Pending room images:', pendingImages[formType].room.length);
     
-    pendingImages[formType].cover.forEach((img, idx) => {
-        if (img.file) {
-            files.push({ file: img.file, category: 'cover', order: idx });
-        }
-    });
-    
-    pendingImages[formType].room.forEach((img, idx) => {
-        if (img.file) {
-            files.push({ file: img.file, category: 'room', order: idx });
-        }
-    });
+    for (const category of categories) {
+        console.log(`Pending ${category} images:`, pendingImages[formType][category].length);
+        pendingImages[formType][category].forEach((img, idx) => {
+            if (img.file) {
+                files.push({ file: img.file, category: category, order: idx });
+            }
+        });
+    }
     
     console.log('Total files to upload:', files.length);
     return files;
