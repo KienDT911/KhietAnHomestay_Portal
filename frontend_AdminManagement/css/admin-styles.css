@@ -3461,3 +3461,173 @@ html, body {
     border-radius: 8px;
     box-shadow: 0 8px 30px rgba(0,0,0,0.6);
 }
+
+/* ===== User Management Styles ===== */
+.users-table-container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    overflow-x: auto;
+    margin-bottom: 20px;
+}
+
+.users-table {
+    width: 100%;
+}
+
+.users-table .loading-text,
+.users-table .error-text,
+.users-table .empty-text {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-light);
+}
+
+.users-table .error-text {
+    color: var(--error-color);
+}
+
+.current-user-row {
+    background-color: rgba(123, 155, 126, 0.1);
+}
+
+.badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.badge-admin {
+    background-color: rgba(123, 155, 126, 0.2);
+    color: var(--dark-green);
+}
+
+.badge-manager {
+    background-color: rgba(184, 146, 106, 0.2);
+    color: var(--warm-brown);
+}
+
+.badge-you {
+    background-color: var(--sage-green);
+    color: white;
+    margin-left: 8px;
+    font-size: 10px;
+}
+
+.password-hidden {
+    color: var(--text-light);
+    font-family: monospace;
+    margin-right: 10px;
+}
+
+.actions-cell {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.btn-small {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-outline {
+    background: transparent;
+    border: 1px solid var(--sage-green);
+    color: var(--sage-green);
+}
+
+.btn-outline:hover {
+    background: var(--sage-green);
+    color: white;
+}
+
+.btn-danger-outline {
+    background: transparent;
+    border: 1px solid var(--error-color);
+    color: var(--error-color);
+}
+
+.btn-danger-outline:hover {
+    background: var(--error-color);
+    color: white;
+}
+
+/* User Form Container */
+.user-form-container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.user-form-container .form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.user-form-container .form-header h3 {
+    margin: 0;
+    color: var(--dark-green);
+}
+
+.btn-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--text-light);
+    padding: 0;
+    line-height: 1;
+}
+
+.btn-close:hover {
+    color: var(--error-color);
+}
+
+/* Password Input Group */
+.password-input-group {
+    display: flex;
+    gap: 8px;
+}
+
+.password-input-group input {
+    flex: 1;
+}
+
+.btn-toggle-password {
+    padding: 8px 12px;
+    background: var(--light-sage);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.btn-toggle-password:hover {
+    background: var(--sage-green);
+}
+
+/* Section Header */
+#manage-users .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+#manage-users .section-header h2 {
+    margin: 0;
+}

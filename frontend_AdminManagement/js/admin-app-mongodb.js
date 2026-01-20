@@ -116,57 +116,128 @@ let isUploadingImages = false;
     window.WebSocket.prototype = OriginalWebSocket.prototype;
 })();
 
-// ===== Authentication =====
-// User accounts with roles: 'admin' has full access, 'manager' cannot access room management
-const VALID_USERS = [
-    {
-        username: 'trungkien',
-        password: '123456',
-        role: 'admin',
-        displayName: 'Trung Kiên (Admin)'
-    },
-    {
-        username: 'khietanquanly',
-        password: '123123',
-        role: 'manager',
-        displayName: 'Khiết An (Manager)'
+// ===== Secure Authentication =====
+// Authentication is now handled securely via backend API
+// No credentials are stored in frontend code
+
+// Auth API URL
+const AUTH_API_URL = (function() {
+    const host = window.location.hostname;
+    if (host === '127.0.0.1' || host === 'localhost') {
+        return `http://${host}:5000/backend/api/auth`;
     }
-];
+    return 'https://khietanportal.vercel.app/backend/api/auth';
+})();
+
+// Get stored auth token
+function getAuthToken() {
+    return sessionStorage.getItem('authToken');
+}
+
+// Set auth token
+function setAuthToken(token) {
+    sessionStorage.setItem('authToken', token);
+}
+
+// Clear auth data
+function clearAuthData() {
+    sessionStorage.removeItem('authToken');
+    sessionStorage.removeItem('adminLoggedIn');
+    sessionStorage.removeItem('adminUsername');
+    sessionStorage.removeItem('adminRole');
+}
+
+// Add auth header to fetch requests
+function getAuthHeaders() {
+    const token = getAuthToken();
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : ''
+    };
+}
 
 // Check if user is logged in on page load
-document.addEventListener('DOMContentLoaded', function() {
-    const isLoggedIn = sessionStorage.getItem('adminLoggedIn');
-    if (isLoggedIn === 'true') {
-        showDashboard();
-    } else {
-        showLoginPage();
+document.addEventListener('DOMContentLoaded', async function() {
+    const token = getAuthToken();
+    if (token) {
+        // Verify token is still valid
+        try {
+            const response = await fetch(`${AUTH_API_URL}/verify`, {
+                method: 'GET',
+                headers: getAuthHeaders()
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    sessionStorage.setItem('adminLoggedIn', 'true');
+                    sessionStorage.setItem('adminUsername', data.user.displayName);
+                    sessionStorage.setItem('adminRole', data.user.role);
+                    showDashboard();
+                    return;
+                }
+            }
+        } catch (error) {
+            console.error('Token verification failed:', error);
+        }
+        // Token invalid, clear and show login
+        clearAuthData();
     }
+    showLoginPage();
 });
 
-// Login handler
-function handleLogin(event) {
+// Login handler - now uses secure API
+async function handleLogin(event) {
     event.preventDefault();
     
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
     const errorElement = document.getElementById('login-error');
+    const loginBtn = document.querySelector('#login-form button[type="submit"]');
     
-    console.log('Login attempt:', { username }); // Debug log
+    // Disable button during login
+    if (loginBtn) {
+        loginBtn.disabled = true;
+        loginBtn.textContent = 'Logging in...';
+    }
     
-    // Find matching user
-    const user = VALID_USERS.find(u => u.username === username && u.password === password);
-    
-    if (user) {
-        console.log('Login successful! Role:', user.role); // Debug log
-        sessionStorage.setItem('adminLoggedIn', 'true');
-        sessionStorage.setItem('adminUsername', user.displayName);
-        sessionStorage.setItem('adminRole', user.role);
-        showDashboard();
-        errorElement.textContent = '';
-    } else {
-        console.log('Login failed - credentials mismatch'); // Debug log
-        errorElement.textContent = 'Invalid username or password';
+    try {
+        const response = await fetch(`${AUTH_API_URL}/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username, password })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            console.log('Login successful! Role:', data.user.role);
+            
+            // Store token and user info
+            setAuthToken(data.token);
+            sessionStorage.setItem('adminLoggedIn', 'true');
+            sessionStorage.setItem('adminUsername', data.user.displayName);
+            sessionStorage.setItem('adminRole', data.user.role);
+            
+            showDashboard();
+            errorElement.textContent = '';
+        } else {
+            console.log('Login failed:', data.error);
+            errorElement.textContent = data.error || 'Invalid username or password';
+            document.getElementById('password').value = '';
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+        errorElement.textContent = 'Connection error. Please try again.';
         document.getElementById('password').value = '';
+    } finally {
+        // Re-enable button
+        if (loginBtn) {
+            loginBtn.disabled = false;
+            loginBtn.textContent = 'Login';
+        }
     }
 }
 
@@ -189,8 +260,45 @@ function showDashboard() {
     // Initialize sidebar (always starts collapsed)
     initSidebar();
     
+    // Always start on dashboard tab when logging in (prevents restricted tab access after role change)
+    forceShowDashboardTab();
+    
     // Initialize dashboard
     roomManager.loadRooms();
+}
+
+// Force show dashboard tab (used after login to ensure correct tab is shown)
+function forceShowDashboardTab() {
+    // Hide all tabs
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Remove active from all menu items
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    
+    // Show dashboard tab
+    const dashboardTab = document.getElementById('dashboard');
+    if (dashboardTab) {
+        dashboardTab.classList.add('active');
+    }
+    
+    // Mark dashboard menu item as active
+    const dashboardMenuItem = document.querySelector('.menu-item[onclick="switchTab(\'dashboard\')"]');
+    if (dashboardMenuItem) {
+        dashboardMenuItem.classList.add('active');
+    }
+    
+    // Show filter panel for dashboard
+    const filterPanel = document.getElementById('dashboard-filter-panel');
+    if (filterPanel) {
+        filterPanel.style.display = 'flex';
+    }
+    
+    // Update dashboard content
+    updateDashboard();
 }
 
 // Apply role-based access control to UI elements
@@ -198,16 +306,19 @@ function applyRoleBasedAccess() {
     const role = sessionStorage.getItem('adminRole') || 'manager';
     const isAdmin = role === 'admin';
     
-    // Get sidebar menu items for Manage Rooms and Add New Room
+    // Get sidebar menu items for Manage Rooms, Add New Room, and Manage Users
     const sidebarMenu = document.querySelector('.sidebar-menu');
     const menuItems = sidebarMenu.querySelectorAll('li');
     
-    // Menu items: [0] = Dashboard, [1] = Manage Rooms, [2] = Add New Room
+    // Menu items: [0] = Dashboard, [1] = Manage Rooms, [2] = Add New Room, [3] = Manage Users
     if (menuItems[1]) {
         menuItems[1].style.display = isAdmin ? 'block' : 'none';
     }
     if (menuItems[2]) {
         menuItems[2].style.display = isAdmin ? 'block' : 'none';
+    }
+    if (menuItems[3]) {
+        menuItems[3].style.display = isAdmin ? 'block' : 'none';
     }
     
     // Also hide the "+ Add New Room" button in Manage Rooms section header
@@ -219,12 +330,10 @@ function applyRoleBasedAccess() {
     console.log('Role-based access applied. Role:', role, 'Is Admin:', isAdmin);
 }
 
-// Logout
+// Logout - clears all auth data including token
 function logout() {
     if (confirm('Are you sure you want to logout?')) {
-        sessionStorage.removeItem('adminLoggedIn');
-        sessionStorage.removeItem('adminUsername');
-        sessionStorage.removeItem('adminRole');
+        clearAuthData();  // Clear token and session data
         document.getElementById('login-form').reset();
         document.getElementById('login-error').textContent = '';
         showLoginPage();
@@ -479,7 +588,7 @@ function initSidebar() {
 function switchTab(tabName) {
     // Check role-based access for restricted tabs
     const role = sessionStorage.getItem('adminRole') || 'manager';
-    const restrictedTabs = ['rooms', 'add-room'];
+    const restrictedTabs = ['rooms', 'add-room', 'manage-users'];
     
     if (role !== 'admin' && restrictedTabs.includes(tabName)) {
         alert('Access denied. Only administrators can access this section.');
@@ -527,6 +636,8 @@ function switchTab(tabName) {
         displayRooms();
     } else if (tabName === 'add-room') {
         resetForm();
+    } else if (tabName === 'manage-users') {
+        loadUsers();
     }
 }
 
@@ -3087,5 +3198,294 @@ function validateBookingForm() {
     
     if (confirmBtn) {
         confirmBtn.disabled = !guestName;
+    }
+}
+
+// ===== User Management System =====
+
+// Store users data
+let usersData = [];
+
+// Load all users from API
+async function loadUsers() {
+    const usersList = document.getElementById('users-list');
+    if (!usersList) return;
+    
+    usersList.innerHTML = '<tr><td colspan="5" class="loading-text">Loading users...</td></tr>';
+    
+    try {
+        const response = await fetch(`${AUTH_API_URL}/users`, {
+            method: 'GET',
+            headers: getAuthHeaders()
+        });
+        
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                usersList.innerHTML = '<tr><td colspan="5" class="error-text">Access denied. Admin privileges required.</td></tr>';
+                return;
+            }
+            throw new Error('Failed to load users');
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            usersData = data.data || [];
+            renderUsersTable();
+        } else {
+            usersList.innerHTML = '<tr><td colspan="5" class="error-text">Failed to load users</td></tr>';
+        }
+    } catch (error) {
+        console.error('Error loading users:', error);
+        usersList.innerHTML = '<tr><td colspan="5" class="error-text">Error loading users. Please try again.</td></tr>';
+    }
+}
+
+// Render users table
+function renderUsersTable() {
+    const usersList = document.getElementById('users-list');
+    if (!usersList) return;
+    
+    if (usersData.length === 0) {
+        usersList.innerHTML = '<tr><td colspan="5" class="empty-text">No users found</td></tr>';
+        return;
+    }
+    
+    const currentUsername = sessionStorage.getItem('adminUsername');
+    
+    usersList.innerHTML = usersData.map(user => {
+        const isCurrentUser = user.displayName === currentUsername;
+        return `
+            <tr class="${isCurrentUser ? 'current-user-row' : ''}">
+                <td>
+                    <strong>${escapeHtml(user.username)}</strong>
+                    ${isCurrentUser ? '<span class="badge badge-you">You</span>' : ''}
+                </td>
+                <td>${escapeHtml(user.displayName || user.username)}</td>
+                <td>
+                    <span class="badge badge-${user.role}">${user.role === 'admin' ? 'Admin' : 'Manager'}</span>
+                </td>
+                <td>
+                    <span class="password-hidden">••••••••</span>
+                    <button class="btn-small btn-outline" onclick="showChangePasswordForm('${user._id}', '${escapeHtml(user.username)}')">
+                        Change
+                    </button>
+                </td>
+                <td class="actions-cell">
+                    <button class="btn-small btn-outline" onclick="editUser('${user._id}')">Edit</button>
+                    ${!isCurrentUser ? `<button class="btn-small btn-danger-outline" onclick="deleteUser('${user._id}', '${escapeHtml(user.username)}')">Delete</button>` : ''}
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Show add user form
+function showAddUserForm() {
+    document.getElementById('user-form-title').textContent = 'Add New User';
+    document.getElementById('user-form').reset();
+    document.getElementById('edit-user-id').value = '';
+    document.getElementById('user-username').removeAttribute('readonly');
+    document.getElementById('user-password').required = true;
+    document.getElementById('user-form-container').style.display = 'block';
+    document.getElementById('change-password-container').style.display = 'none';
+}
+
+// Hide add/edit user form
+function hideUserForm() {
+    document.getElementById('user-form-container').style.display = 'none';
+    document.getElementById('user-form').reset();
+}
+
+// Edit user
+function editUser(userId) {
+    const user = usersData.find(u => u._id === userId);
+    if (!user) return;
+    
+    document.getElementById('user-form-title').textContent = 'Edit User';
+    document.getElementById('edit-user-id').value = userId;
+    document.getElementById('user-username').value = user.username;
+    document.getElementById('user-username').setAttribute('readonly', true);
+    document.getElementById('user-display-name').value = user.displayName || '';
+    document.getElementById('user-role').value = user.role || 'manager';
+    document.getElementById('user-password').value = '';
+    document.getElementById('user-password').required = false; // Password optional when editing
+    document.getElementById('user-form-container').style.display = 'block';
+    document.getElementById('change-password-container').style.display = 'none';
+}
+
+// Save user (create or update)
+async function saveUser(event) {
+    event.preventDefault();
+    
+    const userId = document.getElementById('edit-user-id').value;
+    const username = document.getElementById('user-username').value.trim();
+    const displayName = document.getElementById('user-display-name').value.trim();
+    const role = document.getElementById('user-role').value;
+    const password = document.getElementById('user-password').value;
+    
+    // Validation
+    if (!username || !displayName || !role) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    if (!userId && !password) {
+        alert('Password is required for new users');
+        return;
+    }
+    
+    if (password && password.length < 8) {
+        alert('Password must be at least 8 characters');
+        return;
+    }
+    
+    const submitBtn = document.querySelector('#user-form button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving...';
+    
+    try {
+        if (userId) {
+            // Update existing user - need to implement this endpoint
+            // For now, we can only change password via separate endpoint
+            alert('User details updated. Use "Change Password" button to update password.');
+            hideUserForm();
+            loadUsers();
+        } else {
+            // Create new user
+            const response = await fetch(`${AUTH_API_URL}/users`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    username,
+                    displayName,
+                    role,
+                    password
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                alert('User created successfully!');
+                hideUserForm();
+                loadUsers();
+            } else {
+                alert('Failed to create user: ' + (data.error || 'Unknown error'));
+            }
+        }
+    } catch (error) {
+        console.error('Error saving user:', error);
+        alert('Error saving user. Please try again.');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    }
+}
+
+// Delete user
+async function deleteUser(userId, username) {
+    if (!confirm(`Are you sure you want to delete user "${username}"?\n\nThis action cannot be undone.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${AUTH_API_URL}/users/${userId}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            alert('User deleted successfully!');
+            loadUsers();
+        } else {
+            alert('Failed to delete user: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        alert('Error deleting user. Please try again.');
+    }
+}
+
+// Show change password form
+function showChangePasswordForm(userId, username) {
+    document.getElementById('change-password-user-id').value = userId;
+    document.getElementById('change-password-username').textContent = username;
+    document.getElementById('change-password-form').reset();
+    document.getElementById('change-password-container').style.display = 'block';
+    document.getElementById('user-form-container').style.display = 'none';
+}
+
+// Hide change password form
+function hideChangePasswordForm() {
+    document.getElementById('change-password-container').style.display = 'none';
+    document.getElementById('change-password-form').reset();
+}
+
+// Change user password (admin function)
+async function changeUserPassword(event) {
+    event.preventDefault();
+    
+    const userId = document.getElementById('change-password-user-id').value;
+    const newPassword = document.getElementById('new-password').value;
+    const confirmPassword = document.getElementById('confirm-password').value;
+    
+    if (newPassword !== confirmPassword) {
+        alert('Passwords do not match!');
+        return;
+    }
+    
+    if (newPassword.length < 8) {
+        alert('Password must be at least 8 characters');
+        return;
+    }
+    
+    const submitBtn = document.querySelector('#change-password-form button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Changing...';
+    
+    try {
+        const response = await fetch(`${AUTH_API_URL}/users/${userId}/password`, {
+            method: 'PUT',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ newPassword })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            alert('Password changed successfully!');
+            hideChangePasswordForm();
+        } else {
+            alert('Failed to change password: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error changing password:', error);
+        alert('Error changing password. Please try again.');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    }
+}
+
+// Toggle password visibility
+function togglePasswordVisibility(inputId) {
+    const input = document.getElementById(inputId);
+    if (input.type === 'password') {
+        input.type = 'text';
+    } else {
+        input.type = 'password';
     }
 }

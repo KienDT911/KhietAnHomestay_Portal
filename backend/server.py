@@ -9,7 +9,12 @@ from werkzeug.utils import secure_filename
 import os
 import json
 import io
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from functools import wraps
+
+# Authentication libraries
+import bcrypt
+import jwt
 
 # Cloudinary for cloud image storage (works on Vercel)
 try:
@@ -141,6 +146,103 @@ except Exception as e:
         print(f"❌ Could not load fallback data: {e}")
         print("⚠️  System running without data")
 
+# ===== Authentication Configuration =====
+# JWT Secret Key - MUST be set in environment variables for production
+JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'khietan-homestay-super-secret-key-change-in-production-2024')
+JWT_EXPIRATION_HOURS = 24  # Token expires after 24 hours
+
+# Users collection for authentication
+users_collection = None
+if db is not None:
+    users_collection = db['admin_users']
+    print("✓ Users collection initialized")
+    
+    # Initialize default admin users if collection is empty (first run only)
+    try:
+        if users_collection.count_documents({}) == 0:
+            # Hash passwords securely
+            default_users = [
+                {
+                    'username': os.getenv('ADMIN_USERNAME_1', 'admin'),
+                    'password_hash': bcrypt.hashpw(
+                        os.getenv('ADMIN_PASSWORD_1', 'changeme123').encode('utf-8'), 
+                        bcrypt.gensalt()
+                    ).decode('utf-8'),
+                    'role': 'admin',
+                    'displayName': os.getenv('ADMIN_DISPLAY_1', 'Administrator'),
+                    'created_at': datetime.now(timezone.utc)
+                }
+            ]
+            users_collection.insert_many(default_users)
+            print("✓ Default admin user created. CHANGE PASSWORD IMMEDIATELY!")
+    except Exception as e:
+        print(f"⚠️ Could not initialize default users: {e}")
+
+def hash_password(password):
+    """Hash a password using bcrypt"""
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+def verify_password(password, password_hash):
+    """Verify a password against its hash"""
+    return bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8'))
+
+def generate_token(user_data):
+    """Generate a JWT token for authenticated user"""
+    payload = {
+        'user_id': str(user_data.get('_id')),
+        'username': user_data.get('username'),
+        'role': user_data.get('role'),
+        'displayName': user_data.get('displayName'),
+        'exp': datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRATION_HOURS),
+        'iat': datetime.now(timezone.utc)
+    }
+    return jwt.encode(payload, JWT_SECRET_KEY, algorithm='HS256')
+
+def verify_token(token):
+    """Verify and decode a JWT token"""
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=['HS256'])
+        return payload
+    except jwt.ExpiredSignatureError:
+        return None
+    except jwt.InvalidTokenError:
+        return None
+
+def token_required(f):
+    """Decorator to require valid JWT token for protected routes"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        
+        # Check for token in Authorization header
+        auth_header = request.headers.get('Authorization')
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.split(' ')[1]
+        
+        if not token:
+            return jsonify({'success': False, 'error': 'Authentication token required'}), 401
+        
+        payload = verify_token(token)
+        if not payload:
+            return jsonify({'success': False, 'error': 'Invalid or expired token'}), 401
+        
+        # Add user info to request context
+        request.current_user = payload
+        return f(*args, **kwargs)
+    
+    return decorated
+
+def admin_required(f):
+    """Decorator to require admin role for protected routes"""
+    @wraps(f)
+    @token_required
+    def decorated(*args, **kwargs):
+        if request.current_user.get('role') != 'admin':
+            return jsonify({'success': False, 'error': 'Admin access required'}), 403
+        return f(*args, **kwargs)
+    
+    return decorated
+
 # ===== Helper Functions =====
 def convert_room_for_api(room):
     """Convert MongoDB room document to API response format"""
@@ -175,6 +277,280 @@ def convert_room_for_api(room):
     if room.get('images'):
         api_room['images'] = room.get('images')
     return api_room
+
+# ===== Authentication API Endpoints =====
+
+@app.route('/backend/api/auth/login', methods=['POST'])
+def login():
+    """Authenticate user and return JWT token"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'Request body required'}), 400
+        
+        username = data.get('username', '').strip()
+        password = data.get('password', '')
+        
+        if not username or not password:
+            return jsonify({'success': False, 'error': 'Username and password required'}), 400
+        
+        if users_collection is None:
+            return jsonify({'success': False, 'error': 'Authentication service unavailable'}), 503
+        
+        # Find user by username
+        user = users_collection.find_one({'username': username})
+        
+        if not user:
+            # Use generic error to prevent username enumeration
+            return jsonify({'success': False, 'error': 'Invalid username or password'}), 401
+        
+        # Verify password
+        if not verify_password(password, user.get('password_hash', '')):
+            return jsonify({'success': False, 'error': 'Invalid username or password'}), 401
+        
+        # Generate JWT token
+        token = generate_token(user)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Login successful',
+            'token': token,
+            'user': {
+                'username': user.get('username'),
+                'role': user.get('role'),
+                'displayName': user.get('displayName')
+            }
+        }), 200
+        
+    except Exception as e:
+        print(f"Login error: {e}")
+        return jsonify({'success': False, 'error': 'Authentication failed'}), 500
+
+@app.route('/backend/api/auth/verify', methods=['GET'])
+@token_required
+def verify_auth():
+    """Verify if current token is valid"""
+    return jsonify({
+        'success': True,
+        'user': {
+            'username': request.current_user.get('username'),
+            'role': request.current_user.get('role'),
+            'displayName': request.current_user.get('displayName')
+        }
+    }), 200
+
+@app.route('/backend/api/auth/change-password', methods=['POST'])
+@token_required
+def change_password():
+    """Change password for authenticated user"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'Request body required'}), 400
+        
+        current_password = data.get('currentPassword', '')
+        new_password = data.get('newPassword', '')
+        
+        if not current_password or not new_password:
+            return jsonify({'success': False, 'error': 'Current and new password required'}), 400
+        
+        if len(new_password) < 8:
+            return jsonify({'success': False, 'error': 'New password must be at least 8 characters'}), 400
+        
+        if users_collection is None:
+            return jsonify({'success': False, 'error': 'Service unavailable'}), 503
+        
+        # Get current user from database
+        username = request.current_user.get('username')
+        user = users_collection.find_one({'username': username})
+        
+        if not user:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+        
+        # Verify current password
+        if not verify_password(current_password, user.get('password_hash', '')):
+            return jsonify({'success': False, 'error': 'Current password is incorrect'}), 401
+        
+        # Update password
+        new_hash = hash_password(new_password)
+        users_collection.update_one(
+            {'username': username},
+            {'$set': {'password_hash': new_hash, 'updated_at': datetime.now(timezone.utc)}}
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Password changed successfully'
+        }), 200
+        
+    except Exception as e:
+        print(f"Change password error: {e}")
+        return jsonify({'success': False, 'error': 'Failed to change password'}), 500
+
+@app.route('/backend/api/auth/users', methods=['GET'])
+@admin_required
+def get_users():
+    """Get all users (admin only)"""
+    try:
+        if users_collection is None:
+            return jsonify({'success': False, 'error': 'Service unavailable'}), 503
+        
+        users = list(users_collection.find({}, {'password_hash': 0}))  # Exclude password hash
+        
+        # Convert ObjectId to string
+        for user in users:
+            user['_id'] = str(user['_id'])
+        
+        return jsonify({
+            'success': True,
+            'data': users,
+            'count': len(users)
+        }), 200
+        
+    except Exception as e:
+        print(f"Get users error: {e}")
+        return jsonify({'success': False, 'error': 'Failed to get users'}), 500
+
+@app.route('/backend/api/auth/users', methods=['POST'])
+@admin_required
+def create_user():
+    """Create a new user (admin only)"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'Request body required'}), 400
+        
+        username = data.get('username', '').strip()
+        password = data.get('password', '')
+        role = data.get('role', 'manager')
+        displayName = data.get('displayName', username)
+        
+        if not username or not password:
+            return jsonify({'success': False, 'error': 'Username and password required'}), 400
+        
+        if len(password) < 8:
+            return jsonify({'success': False, 'error': 'Password must be at least 8 characters'}), 400
+        
+        if role not in ['admin', 'manager']:
+            return jsonify({'success': False, 'error': 'Role must be admin or manager'}), 400
+        
+        if users_collection is None:
+            return jsonify({'success': False, 'error': 'Service unavailable'}), 503
+        
+        # Check if username already exists
+        if users_collection.find_one({'username': username}):
+            return jsonify({'success': False, 'error': 'Username already exists'}), 409
+        
+        # Create new user
+        new_user = {
+            'username': username,
+            'password_hash': hash_password(password),
+            'role': role,
+            'displayName': displayName,
+            'created_at': datetime.now(timezone.utc)
+        }
+        
+        result = users_collection.insert_one(new_user)
+        
+        return jsonify({
+            'success': True,
+            'message': 'User created successfully',
+            'user': {
+                '_id': str(result.inserted_id),
+                'username': username,
+                'role': role,
+                'displayName': displayName
+            }
+        }), 201
+        
+    except Exception as e:
+        print(f"Create user error: {e}")
+        return jsonify({'success': False, 'error': 'Failed to create user'}), 500
+
+@app.route('/backend/api/auth/users/<user_id>', methods=['DELETE'])
+@admin_required
+def delete_user(user_id):
+    """Delete a user (admin only)"""
+    try:
+        if users_collection is None:
+            return jsonify({'success': False, 'error': 'Service unavailable'}), 503
+        
+        # Prevent deleting yourself
+        if request.current_user.get('user_id') == user_id:
+            return jsonify({'success': False, 'error': 'Cannot delete your own account'}), 400
+        
+        # Find and delete user
+        try:
+            result = users_collection.delete_one({'_id': ObjectId(user_id)})
+        except:
+            result = users_collection.delete_one({'_id': user_id})
+        
+        if result.deleted_count == 0:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+        
+        return jsonify({
+            'success': True,
+            'message': 'User deleted successfully'
+        }), 200
+        
+    except Exception as e:
+        print(f"Delete user error: {e}")
+        return jsonify({'success': False, 'error': 'Failed to delete user'}), 500
+
+@app.route('/backend/api/auth/users/<user_id>/password', methods=['PUT'])
+@admin_required
+def admin_change_user_password(user_id):
+    """Change password for any user (admin only)"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'Request body required'}), 400
+        
+        new_password = data.get('newPassword', '')
+        
+        if not new_password:
+            return jsonify({'success': False, 'error': 'New password required'}), 400
+        
+        if len(new_password) < 8:
+            return jsonify({'success': False, 'error': 'Password must be at least 8 characters'}), 400
+        
+        if users_collection is None:
+            return jsonify({'success': False, 'error': 'Service unavailable'}), 503
+        
+        # Find user by ID
+        try:
+            user = users_collection.find_one({'_id': ObjectId(user_id)})
+        except:
+            user = users_collection.find_one({'_id': user_id})
+        
+        if not user:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+        
+        # Update password
+        new_hash = hash_password(new_password)
+        try:
+            users_collection.update_one(
+                {'_id': ObjectId(user_id)},
+                {'$set': {'password_hash': new_hash, 'updated_at': datetime.now(timezone.utc)}}
+            )
+        except:
+            users_collection.update_one(
+                {'_id': user_id},
+                {'$set': {'password_hash': new_hash, 'updated_at': datetime.now(timezone.utc)}}
+            )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Password changed successfully'
+        }), 200
+        
+    except Exception as e:
+        print(f"Admin change password error: {e}")
+        return jsonify({'success': False, 'error': 'Failed to change password'}), 500
 
 # ===== Root & Info Endpoints =====
 

@@ -84,6 +84,14 @@
                             <span class="menu-text">Add New Room</span>
                         </a>
                     </li>
+                    <li>
+                        <a href="#" class="menu-item" onclick="switchTab('manage-users')" title="Manage Users">
+                            <svg class="menu-icon" viewBox="0 0 24 24" width="20" height="20">
+                                <path fill="currentColor" d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                            </svg>
+                            <span class="menu-text">Manage Users</span>
+                        </a>
+                    </li>
                 </ul>
                 <button class="sidebar-toggle" onclick="toggleSidebar()">
                     <svg viewBox="0 0 24 24" width="20" height="20">
@@ -347,6 +355,107 @@
                             <button type="button" class="btn-secondary" onclick="resetForm()">Cancel</button>
                         </div>
                     </form>
+                </section>
+
+                <!-- Manage Users Tab (Admin Only) -->
+                <section id="manage-users" class="tab-content">
+                    <div class="section-header">
+                        <h2>Manage Users</h2>
+                        <button class="btn-primary" onclick="showAddUserForm()">+ Add New User</button>
+                    </div>
+
+                    <div class="users-table-container">
+                        <table class="rooms-table users-table">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Display Name</th>
+                                    <th>Role</th>
+                                    <th>Password</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-list">
+                                <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Add/Edit User Form (Hidden by default) -->
+                    <div id="user-form-container" class="user-form-container" style="display: none;">
+                        <div class="form-header">
+                            <h3 id="user-form-title">Add New User</h3>
+                            <button type="button" class="btn-close" onclick="hideUserForm()">×</button>
+                        </div>
+                        <form id="user-form" onsubmit="saveUser(event)">
+                            <input type="hidden" id="edit-user-id">
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="user-username">Username *</label>
+                                    <input type="text" id="user-username" required placeholder="Enter username" minlength="3">
+                                </div>
+                                <div class="form-group">
+                                    <label for="user-display-name">Display Name *</label>
+                                    <input type="text" id="user-display-name" required placeholder="e.g., John Doe (Admin)">
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="user-role">Role *</label>
+                                    <select id="user-role" required>
+                                        <option value="manager">Manager</option>
+                                        <option value="admin">Admin</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="user-password">Password * <small>(min 8 characters)</small></label>
+                                    <div class="password-input-group">
+                                        <input type="password" id="user-password" required placeholder="Enter password" minlength="8">
+                                        <button type="button" class="btn-toggle-password" onclick="togglePasswordVisibility('user-password')">👁</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" class="btn-primary">Save User</button>
+                                <button type="button" class="btn-secondary" onclick="hideUserForm()">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Change Password Modal -->
+                    <div id="change-password-container" class="user-form-container" style="display: none;">
+                        <div class="form-header">
+                            <h3>Change Password for <span id="change-password-username"></span></h3>
+                            <button type="button" class="btn-close" onclick="hideChangePasswordForm()">×</button>
+                        </div>
+                        <form id="change-password-form" onsubmit="changeUserPassword(event)">
+                            <input type="hidden" id="change-password-user-id">
+                            
+                            <div class="form-group">
+                                <label for="new-password">New Password * <small>(min 8 characters)</small></label>
+                                <div class="password-input-group">
+                                    <input type="password" id="new-password" required placeholder="Enter new password" minlength="8">
+                                    <button type="button" class="btn-toggle-password" onclick="togglePasswordVisibility('new-password')">👁</button>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="confirm-password">Confirm Password *</label>
+                                <div class="password-input-group">
+                                    <input type="password" id="confirm-password" required placeholder="Confirm new password" minlength="8">
+                                    <button type="button" class="btn-toggle-password" onclick="togglePasswordVisibility('confirm-password')">👁</button>
+                                </div>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" class="btn-primary">Change Password</button>
+                                <button type="button" class="btn-secondary" onclick="hideChangePasswordForm()">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
                 </section>
             </main>
         </div>
