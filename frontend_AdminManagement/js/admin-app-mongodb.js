@@ -77,7 +77,21 @@ const API_BASE_URL = (function() {
     }
     return 'https://khietanportal.vercel.app/backend/api/admin';
 })();
-console.log('API_BASE_URL:', API_BASE_URL);
+
+// ===== Logging Configuration =====
+// Set to true to enable detailed debug logs (URLs, data, etc.)
+// Set to false for production (only essential action confirmations)
+const DEBUG_MODE = false;
+
+// Logger utility - only logs essential messages in production
+const logger = {
+    // Always show these (essential confirmations)
+    info: (msg) => console.log(`✓ ${msg}`),
+    warn: (msg) => console.warn(`⚠ ${msg}`),
+    error: (msg) => console.error(`✗ ${msg}`),
+    // Only show in debug mode (URLs, detailed data, etc.)
+    debug: (...args) => { if (DEBUG_MODE) console.log(...args); }
+};
 
 // Global flag to prevent reloads during upload - MUST be defined before WebSocket intercept
 let isUploadingImages = false;
@@ -99,7 +113,7 @@ let isUploadingImages = false;
                 socket._customHandler = function(event) {
                     // Block reload messages during upload
                     if (isUploadingImages) {
-                        console.log('🚫 Blocked Live Server reload during upload');
+                        logger.debug('🚫 Blocked Live Server reload during upload');
                         return;
                     }
                     if (handler) handler.call(socket, event);
