@@ -1225,26 +1225,50 @@ async function uploadRoomImageWithCategory(roomId, file, category, order) {
 
         const contentType = resp.headers.get('content-type') || '';
         if (!resp.ok) {
-            let errText = resp.status + ' ' + resp.statusText;
-            try {
-                if (contentType.includes('application/json')) {
-                    const json = await resp.json();
-                    errText = json.error || JSON.stringify(json);
-                } else {
-                    errText = await resp.text();
-                }
-            } catch (e) {}
-            throw new Error('Upload failed: ' + errText);
+            let errText = '';
+            // Provide user-friendly error messages
+            if (resp.status === 413) {
+                errText = 'File too large (max 4.5MB for server)';
+            } else if (resp.status === 0 || resp.status === undefined) {
+                errText = 'Network error - CORS blocked or server unavailable';
+            } else {
+                errText = resp.status + ' ' + resp.statusText;
+                try {
+                    if (contentType.includes('application/json')) {
+                        const json = await resp.json();
+                        errText = json.error || JSON.stringify(json);
+                    } else {
+                        const text = await resp.text();
+                        if (text) errText = text;
+                    }
+                } catch (e) {}
+            }
+            const error = new Error(errText);
+            error.fileName = file.name;
+            error.fileSize = (file.size / 1024 / 1024).toFixed(2) + 'MB';
+            error.statusCode = resp.status;
+            throw error;
         }
 
         const result = contentType.includes('application/json') ? await resp.json() : { success: true };
         if (!result.success) {
-            throw new Error(result.error || 'Upload failed');
+            const error = new Error(result.error || 'Upload failed');
+            error.fileName = file.name;
+            throw error;
         }
         return result.imageUrl;
     } catch (err) {
         console.error('uploadRoomImageWithCategory error:', err);
-        throw new Error(err.message || 'Failed to upload image');
+        // Preserve file info in error
+        if (!err.fileName) {
+            err.fileName = file.name;
+            err.fileSize = (file.size / 1024 / 1024).toFixed(2) + 'MB';
+        }
+        // Check for network/CORS errors
+        if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
+            err.message = 'Network error - CORS blocked or server unavailable';
+        }
+        throw err;
     }
 }
 
@@ -1736,6 +1760,9 @@ function editRoom(id) {
                 submitButton.textContent = `Uploading images 0/${pendingFiles.length}...`;
                 console.log('=== STARTING UPLOAD LOOP ===');
                 
+                // Track failed uploads with details
+                const failedUploads = [];
+                
                 for (let i = 0; i < pendingFiles.length; i++) {
                     const item = pendingFiles[i];
                     console.log(`[${i + 1}/${pendingFiles.length}] Starting upload:`, item.file.name, 'category:', item.category);
@@ -1748,6 +1775,13 @@ function editRoom(id) {
                     } catch (imgErr) {
                         console.error(`[${i + 1}/${pendingFiles.length}] Upload FAILED:`, imgErr);
                         failedCount++;
+                        // Store detailed error info
+                        failedUploads.push({
+                            fileName: imgErr.fileName || item.file.name,
+                            fileSize: imgErr.fileSize || (item.file.size / 1024 / 1024).toFixed(2) + 'MB',
+                            category: item.category,
+                            error: imgErr.message || 'Unknown error'
+                        });
                     }
                     
                     console.log(`[${i + 1}/${pendingFiles.length}] Completed. Waiting 500ms before next...`);
@@ -1765,8 +1799,19 @@ function editRoom(id) {
                 
                 console.log('=== UPLOAD LOOP FINISHED ===');
                 console.log(`Upload summary: ${uploadedCount} success, ${failedCount} failed`);
+                
+                // Show detailed error message if any uploads failed
                 if (failedCount > 0) {
-                    alert(`${failedCount} image(s) failed to upload. Please try again.`);
+                    let errorMessage = `❌ ${failedCount} image(s) failed to upload:\n\n`;
+                    failedUploads.forEach((fail, idx) => {
+                        errorMessage += `${idx + 1}. "${fail.fileName}" (${fail.fileSize}, ${fail.category})\n`;
+                        errorMessage += `   Error: ${fail.error}\n\n`;
+                    });
+                    errorMessage += `\n💡 Tips:\n`;
+                    errorMessage += `• Max file size: 4.5MB (Vercel limit)\n`;
+                    errorMessage += `• Compress large images before uploading\n`;
+                    errorMessage += `• Try JPG format for smaller file size`;
+                    alert(errorMessage);
                 }
             }
             
