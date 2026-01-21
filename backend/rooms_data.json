@@ -1,307 +1,101 @@
 [
     {
-        "_id": "0101",
-        "name": "Tài",
-        "persons": 2,
-        "description": "Spacious room with a beautiful garden view, perfect for couples or solo travelers seeking peace. Features a comfortable queen-size bed, private bathroom, and a cozy reading nook.",
-        "price": 550,
-        "amenities": [
-            "Queen Bed",
-            "Private Bath",
-            "Garden View",
-            "WiFi"
-        ],
-        "updated_at": "2026-01-12T00:49:42.694000",
-        "bookedIntervals": [
-            {
-                "checkIn": "2026-01-05",
-                "checkOut": "2026-01-08"
-            },
-            {
-                "checkIn": "2026-01-15",
-                "checkOut": "2026-01-18",
-                "guestEmail": "",
-                "guestName": "Hue",
-                "guestPhone": "",
-                "notes": "",
-                "updatedAt": "2026-01-11T08:36:34.177000"
-            },
-            {
-                "checkIn": "2026-02-10",
-                "checkOut": "2026-02-14"
-            },
-            {
-                "checkIn": "2026-01-30",
-                "checkOut": "2026-02-03",
-                "guestName": "Tam Nhat",
-                "guestPhone": "",
-                "guestEmail": "",
-                "notes": "",
-                "createdAt": "2026-01-10T22:28:15.145379",
-                "updatedAt": "2026-01-11T08:37:31.704000"
-            },
-            {
-                "checkIn": "2026-02-14",
-                "checkOut": "2026-02-17",
-                "guestName": "Thanh Tam",
-                "guestPhone": "",
-                "guestEmail": "",
-                "notes": "",
-                "createdAt": "2026-01-10T22:28:36.168448"
-            },
-            {
-                "checkIn": "2026-01-19",
-                "checkOut": "2026-01-22",
-                "guestName": "Dang Trung Kien",
-                "guestPhone": "0911666888",
-                "guestEmail": "",
-                "notes": "",
-                "createdAt": "2026-01-11T09:03:48.230366",
-                "updatedAt": "2026-01-11T10:05:36.228000"
-            },
-            {
-                "checkIn": "2026-01-11",
-                "checkOut": "2026-01-11",
-                "guestName": "Demo booking",
-                "guestPhone": "0826824477",
-                "guestEmail": "quangnhat.nydo@gmail.com",
-                "notes": "demo booking",
-                "createdAt": "2026-01-12T00:48:12.133694"
-            },
-            {
-                "checkIn": "2026-01-11",
-                "checkOut": "2026-01-11",
-                "guestName": "Demo booking",
-                "guestPhone": "0826824477",
-                "guestEmail": "quangnhat.nydo@gmail.com",
-                "notes": "demo booking",
-                "createdAt": "2026-01-12T00:49:42.484789"
-            }
-        ]
-    },
-    {
-        "_id": "0102",
-        "name": "Lộc",
-        "persons": 2,
-        "description": "Perfect for families, this suite offers ample space with two bedrooms and a shared living area. Enjoy quality time together while having your own private spaces to retreat to.",
-        "price": 550,
-        "amenities": [
-            "3 Queen Beds",
-            "AC",
-            "Private Bathroom",
-            "TV"
-        ],
-        "updated_at": "2026-01-10T23:58:52.503000",
-        "bookedIntervals": [
-            {
-                "checkIn": "2026-01-10",
-                "checkOut": "2026-01-14",
-                "guestEmail": "",
-                "guestName": "Quang Nhat",
-                "guestPhone": "",
-                "notes": "",
-                "updatedAt": "2026-01-10T23:46:31.378000"
-            },
-            {
-                "checkIn": "2026-01-25",
-                "checkOut": "2026-01-30",
-                "guestEmail": "",
-                "guestName": "Tran Hung",
-                "guestPhone": "",
-                "notes": "",
-                "updatedAt": "2026-01-10T23:58:52.503000"
-            },
-            {
-                "checkIn": "2026-02-05",
-                "checkOut": "2026-02-08"
-            },
-            {
-                "checkIn": "2026-02-20",
-                "checkOut": "2026-02-25"
-            }
-        ]
-    },
-    {
         "_id": "0201",
         "name": "Phát",
+        "price": 700.0,
         "persons": 4,
-        "description": "Two comfortable twin beds make this room perfect for friends traveling together or family members. Bright and airy with modern amenities for your convenience.",
-        "price": 800,
+        "description": "Phát (Prosperity) - Spacious and cozy room perfect for a small family, offering two comfortable queen beds, a private bathroom, and a television. The room features a wide window and a private balcony with beautiful views overlooking the Imperial City of Huế, creating a relaxing and memorable stay.",
         "amenities": [
-            "2 Queen Beds",
+            "2 Queen bed",
+            "Television",
             "WiFi",
-            "AC",
-            "Private Bathroom",
-            "Balcony"
-        ],
-        "updated_at": "2026-01-11T08:43:40.161000",
-        "bookedIntervals": [
-            {
-                "checkIn": "2026-01-03",
-                "checkOut": "2026-01-06"
-            },
-            {
-                "checkIn": "2026-01-20",
-                "checkOut": "2026-01-23",
-                "guestEmail": "",
-                "guestName": "Hoi An",
-                "guestPhone": "",
-                "notes": "",
-                "updatedAt": "2026-01-11T00:00:03.774000"
-            },
-            {
-                "checkIn": "2026-02-01",
-                "checkOut": "2026-02-04"
-            },
-            {
-                "checkIn": "2026-01-10",
-                "checkOut": "2026-01-12",
-                "guestName": "Hien Tam",
-                "guestPhone": "",
-                "guestEmail": "",
-                "notes": "",
-                "createdAt": "2026-01-10T23:41:40.309468",
-                "updatedAt": "2026-01-11T08:43:40.161000"
-            }
-        ]
-    },
-    {
-        "_id": "0301",
-        "name": "Lotus",
-        "persons": 6,
-        "description": "Intimate and affordable, our single room is ideal for solo adventurers. Though compact, it's thoughtfully designed with everything you need for a comfortable stay.",
-        "price": 900,
-        "amenities": [
-            "WiFi",
-            "AC",
-            "Shared Bathroom",
-            "King Bed",
-            "Work Desk",
-            "View of the city"
+            "Private Bathroom"
         ],
         "bookedIntervals": [
             {
-                "checkIn": "2026-01-07",
-                "checkOut": "2026-01-10"
-            },
-            {
-                "checkIn": "2026-01-18",
-                "checkOut": "2026-01-21"
-            },
-            {
-                "checkIn": "2026-02-12",
-                "checkOut": "2026-02-15"
-            },
-            {
-                "checkIn": "2026-02-28",
-                "checkOut": "2026-03-03"
-            }
-        ]
-    },
-    {
-        "_id": "0501",
-        "name": "Big Family Suite",
-        "persons": 8,
-        "description": "",
-        "price": 90,
-        "amenities": [
-            "WiFi",
-            "AC",
-            "2 Bathrooms",
-            "3 King Beds",
-            "View of the city"
-        ],
-        "bookedIntervals": [
-            {
-                "checkIn": "2026-01-12",
-                "checkOut": "2026-01-17",
+                "checkIn": "2026-02-18",
+                "checkOut": "2026-02-20",
+                "guestName": "Chị Dương",
+                "guestPhone": "0903341999",
                 "guestEmail": "",
-                "guestName": "Ha Noi",
-                "guestPhone": "",
-                "notes": "",
-                "updatedAt": "2026-01-11T08:28:43.285000"
-            },
-            {
-                "checkIn": "2026-02-01",
-                "checkOut": "2026-02-07"
-            },
-            {
-                "checkIn": "2026-01-21",
-                "checkOut": "2026-01-23",
-                "guestName": "Thanh Phú",
-                "guestPhone": "",
-                "guestEmail": "",
-                "notes": "",
-                "createdAt": "2026-01-12T04:30:54.652033"
-            },
-            {
-                "checkIn": "2026-01-26",
-                "checkOut": "2026-01-29",
-                "guestName": "Việt Anh",
-                "guestPhone": "",
-                "guestEmail": "",
-                "notes": "",
-                "createdAt": "2026-01-12T04:35:21.615937"
-            },
-            {
-                "checkIn": "2026-01-30",
-                "checkOut": "2026-02-01",
-                "guestName": "Minh Quân",
-                "guestPhone": "",
-                "guestEmail": "",
-                "notes": "",
-                "createdAt": "2026-01-12T04:35:40.070498"
+                "notes": "Phục vụ bánh Huế chiều",
+                "createdAt": "2026-01-17T14:51:00.585137"
             }
         ],
-        "updated_at": "2026-01-12T04:35:40.280000"
+        "created_at": "2026-01-12T16:12:14.481000",
+        "updated_at": "2026-01-19T09:32:51.137000",
+        "imageUrl": "https://res.cloudinary.com/dovy2nvdd/image/upload/v1768758117/khietan_homestay/rooms/0201/cover/cover_0201_0201_Phat_1768758112_0.jpg",
+        "images": {
+            "cover": [
+                "https://res.cloudinary.com/dovy2nvdd/image/upload/v1768758117/khietan_homestay/rooms/0201/cover/cover_0201_0201_Phat_1768758112_0.jpg"
+            ],
+            "bedroom": [
+                "https://res.cloudinary.com/dovy2nvdd/image/upload/v1768794068/khietan_homestay/rooms/0201/bedroom/bedroom_0201_3d48c8188b8204dc5d9310_1768794068_0.jpg",
+                "https://res.cloudinary.com/dovy2nvdd/image/upload/v1768794073/khietan_homestay/rooms/0201/bedroom/bedroom_0201_29eea487e71d6843310c6_1768794073_1.jpg",
+                "https://res.cloudinary.com/dovy2nvdd/image/upload/v1768794079/khietan_homestay/rooms/0201/bedroom/bedroom_0201_81dc6d802e1aa144f80b3_1768794079_2.jpg",
+                "https://res.cloudinary.com/dovy2nvdd/image/upload/v1768794087/khietan_homestay/rooms/0201/bedroom/bedroom_0201_434edd259ebf11e148ae2_1768794087_3.jpg",
+                "https://res.cloudinary.com/dovy2nvdd/image/upload/v1768794092/khietan_homestay/rooms/0201/bedroom/bedroom_0201_767d733b30a1bfffe6b012_1768794092_4.jpg",
+                "https://res.cloudinary.com/dovy2nvdd/image/upload/v1768794098/khietan_homestay/rooms/0201/bedroom/bedroom_0201_6621b649f5d37a8d23c28_1768794098_5.jpg",
+                "https://res.cloudinary.com/dovy2nvdd/image/upload/v1768794105/khietan_homestay/rooms/0201/bedroom/bedroom_0201_87280e414ddbc2859bca7_1768794105_6.jpg",
+                "https://res.cloudinary.com/dovy2nvdd/image/upload/v1768794113/khietan_homestay/rooms/0201/bedroom/bedroom_0201_ae201705-6846-4e31-9dca-721508727983_1768794113_7.jpg"
+            ],
+            "bathroom": [
+                "https://res.cloudinary.com/dovy2nvdd/image/upload/v1768793825/khietan_homestay/rooms/0201/bathroom/bathroom_0201_006c18395ba3d4fd8db25_1768793825_0.jpg",
+                "https://res.cloudinary.com/dovy2nvdd/image/upload/v1768793831/khietan_homestay/rooms/0201/bathroom/bathroom_0201_7c14cb4488de07805ecf1_1768793831_1.jpg",
+                "https://res.cloudinary.com/dovy2nvdd/image/upload/v1768793836/khietan_homestay/rooms/0201/bathroom/bathroom_0201_59b00bf7486dc7339e7c13_1768793836_2.jpg",
+                "https://res.cloudinary.com/dovy2nvdd/image/upload/v1768793842/khietan_homestay/rooms/0201/bathroom/bathroom_0201_620d664b25d1aa8ff3c04_1768793842_3.jpg",
+                "https://res.cloudinary.com/dovy2nvdd/image/upload/v1768793849/khietan_homestay/rooms/0201/bathroom/bathroom_0201_959ae4c9a753280d714211_1768793849_4.jpg",
+                "https://res.cloudinary.com/dovy2nvdd/image/upload/v1768793854/khietan_homestay/rooms/0201/bathroom/bathroom_0201_e79a31cb7251fd0fa4409_1768793854_5.jpg"
+            ],
+            "exterior": [
+                "https://res.cloudinary.com/dovy2nvdd/image/upload/v1768815131/khietan_homestay/rooms/0201/exterior/exterior_0201_3f0e1c34-b602-425b-a371-db07665e73ce_1768815131_0.jpg",
+                "https://res.cloudinary.com/dovy2nvdd/image/upload/v1768815137/khietan_homestay/rooms/0201/exterior/exterior_0201_004f3a5b85fc0aa253ed5_1768815137_1.jpg",
+                "https://res.cloudinary.com/dovy2nvdd/image/upload/v1768815142/khietan_homestay/rooms/0201/exterior/exterior_0201_520764f1-2dbd-4132-a1ab-8ba9c5bd890f_1768815142_2.jpg",
+                "https://res.cloudinary.com/dovy2nvdd/image/upload/v1768815149/khietan_homestay/rooms/0201/exterior/exterior_0201_b6996349-4b78-4780-8946-8fcd8f74406f_1768815149_3.jpg",
+                "https://res.cloudinary.com/dovy2nvdd/image/upload/v1768815154/khietan_homestay/rooms/0201/exterior/exterior_0201_f547bb6f04c88b96d2d94_1768815154_4.jpg",
+                "https://res.cloudinary.com/dovy2nvdd/image/upload/v1768815162/khietan_homestay/rooms/0201/exterior/exterior_0201_Image_Jan_15_2026_12_21_02_PM_1768815161_5.png",
+                "https://res.cloudinary.com/dovy2nvdd/image/upload/v1768815170/khietan_homestay/rooms/0201/exterior/exterior_0201_mage_948uej948uej948u_1768815170_6.png"
+            ]
+        }
     },
     {
         "_id": "0202",
         "name": "An",
         "price": 550.0,
-        "persons": 6,
-        "description": "A spacious, sun-filled balcony room designed for family comfort, featuring cozy seating, warm décor, and plenty of room to relax, gather, and enjoy the view together.",
-        "amenities": [
-            "3 Beds",
-            "Balcony",
-            "Widely"
-        ],
-        "created_at": "2026-01-02T13:21:18.220000",
-        "updated_at": "2026-01-12T02:20:33.831000",
-        "bookedIntervals": [
-            {
-                "checkIn": "2026-01-21",
-                "checkOut": "2026-01-24",
-                "guestName": "Hung Nghia",
-                "guestPhone": "",
-                "guestEmail": "",
-                "notes": "",
-                "createdAt": "2026-01-10T22:52:05.018243"
-            },
-            {
-                "checkIn": "2026-01-13",
-                "checkOut": "2026-01-16",
-                "guestName": "Xuân Đạt",
-                "guestPhone": "",
-                "guestEmail": "",
-                "notes": "",
-                "createdAt": "2026-01-12T01:37:42.065101"
-            }
-        ]
-    },
-    {
-        "_id": "0203",
-        "name": "Khiết",
-        "price": 550.0,
         "persons": 2,
-        "description": "A warm, intimate single room designed for quiet comfort, featuring soft lighting, cozy textures, and a calm atmosphere perfect for rest, reflection, and personal retreat.",
+        "description": "An (Peace) - In mind and in life, is a cozy retreat designed for couples. It features one comfortable queen bed, a private bathroom, television, and WiFi, perfectly suited to meet the needs of two guests in a calm and relaxing atmosphere.",
         "amenities": [
             "1 Queen bed",
             "Television",
             "WiFi",
             "Private Bath"
         ],
-        "created_at": "2026-01-07T14:45:38.792000",
-        "updated_at": "2026-01-07T14:45:38.792000"
+        "bookedIntervals": [],
+        "created_at": "2026-01-12T16:31:52.605000",
+        "updated_at": "2026-01-18T07:57:56.208000"
+    },
+    {
+        "_id": "0205",
+        "name": "Thanh",
+        "price": 600.0,
+        "persons": 2,
+        "description": "Thanh (Fresh) - Offers a cozy and refreshing stay with one queen bed, private bathroom, television, and free Wi-Fi. The room features a small private balcony with views of the Huế Imperial City, creating a peaceful and charming atmosphere.",
+        "amenities": [
+            "1 Queen bed",
+            "Television",
+            "WiFi",
+            "Private Bath"
+        ],
+        "bookedIntervals": [],
+        "created_at": "2026-01-12T16:44:00.142000",
+        "updated_at": "2026-01-19T14:54:53.465000",
+        "images": {
+            "cover": [
+                "https://res.cloudinary.com/dovy2nvdd/image/upload/v1768834492/khietan_homestay/rooms/0205/cover/cover_0205_0205_Thanh_1768834481_0.jpg"
+            ],
+            "bedroom": [],
+            "bathroom": [],
+            "exterior": []
+        }
     }
 ]
