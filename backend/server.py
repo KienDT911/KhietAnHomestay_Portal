@@ -41,15 +41,34 @@ load_dotenv()
 # Initialize Flask app
 app = Flask(__name__, static_folder='static', static_url_path='/backend/static')
 
-# Configure CORS for global access
+# Configure CORS for global access - explicitly allow all origins and methods
 CORS(app, resources={
     r"/*": {
-        "origins": "*",
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization", "Accept"],
-        "supports_credentials": False
+        "origins": ["*", "https://www.khietanportal.site", "https://khietanportal.site", "https://khietanportal.vercel.app", "http://localhost:5500", "http://127.0.0.1:5500"],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+        "allow_headers": ["Content-Type", "Authorization", "Accept", "X-Requested-With", "Origin"],
+        "expose_headers": ["Content-Type", "Authorization"],
+        "supports_credentials": True,
+        "max_age": 86400
     }
 })
+
+# Add CORS headers to all responses
+@app.after_request
+def after_request(response):
+    origin = request.headers.get('Origin', '*')
+    response.headers.add('Access-Control-Allow-Origin', origin)
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With, Origin')
+    response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH')
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    response.headers.add('Access-Control-Max-Age', '86400')
+    return response
+
+# Handle OPTIONS preflight requests globally
+@app.route('/<path:path>', methods=['OPTIONS'])
+def handle_options(path):
+    response = app.make_default_options_response()
+    return response
 
 # Initialize variables
 client = None
