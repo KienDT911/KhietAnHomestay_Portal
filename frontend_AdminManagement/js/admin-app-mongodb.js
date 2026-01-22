@@ -919,9 +919,14 @@ function createRoomCalendarRow(room, checkinDate, checkoutDate) {
     // Row 2: Price + Guests + Image (image aligned to the right)
     const infoPanel = document.createElement('div');
     infoPanel.className = 'room-info-panel';
+    
+    const roomId = room.room_id || room.id;
+    const icalUrl = room.icalUrl || '';
+    const lastSync = room.lastIcalSync ? new Date(room.lastIcalSync).toLocaleDateString() : '';
+    
     infoPanel.innerHTML = `
         <div class="room-header-row">
-            <span class="room-number">#${room.room_id || room.id}</span>
+            <span class="room-number">#${roomId}</span>
             <h4>${room.name}</h4>
         </div>
         <div class="room-details-row">
@@ -931,9 +936,43 @@ function createRoomCalendarRow(room, checkinDate, checkoutDate) {
             </div>
             <div class="room-image-placeholder"></div>
         </div>
+        <div class="room-ical-section" data-room-id="${roomId}">
+            <div class="ical-input-row">
+                <input type="url" class="ical-url-input" 
+                    placeholder="Airbnb iCal URL" 
+                    value="${icalUrl}"
+                    title="Paste Airbnb iCal URL here">
+                <button type="button" class="btn-ical-save" title="Save URL">💾</button>
+                <button type="button" class="btn-ical-sync" title="Sync bookings" ${!icalUrl ? 'disabled' : ''}>🔄</button>
+            </div>
+            ${lastSync ? `<small class="ical-last-sync">Last sync: ${lastSync}</small>` : ''}
+        </div>
     `;
     infoPanel.style.cursor = 'pointer';
-    infoPanel.onclick = () => openQuickEditModal(room.room_id || room.id);
+    
+    // Click handler for the main panel (excluding iCal section)
+    infoPanel.addEventListener('click', (e) => {
+        // Don't trigger edit if clicking on iCal section
+        if (e.target.closest('.room-ical-section')) return;
+        openQuickEditModal(roomId);
+    });
+    
+    // Setup iCal button handlers
+    const icalSection = infoPanel.querySelector('.room-ical-section');
+    const icalInput = icalSection.querySelector('.ical-url-input');
+    const saveBtn = icalSection.querySelector('.btn-ical-save');
+    const syncBtn = icalSection.querySelector('.btn-ical-sync');
+    
+    // Prevent click propagation on iCal elements
+    icalInput.addEventListener('click', (e) => e.stopPropagation());
+    saveBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        saveRoomIcalUrl(roomId, icalInput.value.trim(), saveBtn, syncBtn);
+    });
+    syncBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        syncRoomIcalFromCard(roomId, syncBtn);
+    });
 
     // Image / upload handling
     (function setupRoomImage() {
@@ -3546,5 +3585,355 @@ function togglePasswordVisibility(inputId) {
         input.type = 'text';
     } else {
         input.type = 'password';
+    }
+}
+
+// ===== iCal Sync Functions =====
+
+// Setup iCal section when editing a room
+function setupIcalSection(room) {
+    const icalInput = document.getElementById('edit-room-ical-url');
+    const icalStatus = document.getElementById('ical-status');
+    const lastSyncTime = document.getElementById('last-sync-time');
+    const syncBtn = document.getElementById('btn-sync-ical');
+    
+    if (icalInput) {
+        icalInput.value = room.icalUrl || '';
+        validateIcalUrl(icalInput.value);
+    }
+    
+    if (lastSyncTime) {
+        if (room.lastIcalSync) {
+            const syncDate = new Date(room.lastIcalSync);
+            lastSyncTime.textContent = `Last synced: ${syncDate.toLocaleString()}`;
+            lastSyncTime.style.display = 'inline';
+        } else {
+            lastSyncTime.textContent = '';
+            lastSyncTime.style.display = 'none';
+        }
+    }
+    
+    // Enable/disable sync button based on URL
+    if (syncBtn) {
+        syncBtn.disabled = !room.icalUrl;
+    }
+}
+
+// Validate iCal URL format
+function validateIcalUrl(url) {
+    const icalStatus = document.getElementById('ical-status');
+    const syncBtn = document.getElementById('btn-sync-ical');
+    
+    if (!url || url.trim() === '') {
+        if (icalStatus) {
+            icalStatus.textContent = '';
+            icalStatus.className = '';
+        }
+        if (syncBtn) syncBtn.disabled = true;
+        return false;
+    }
+    
+    // Check if it's a valid URL
+    const urlPattern = /^https?:\/\/.+\.ics/i;
+    const isValidFormat = urlPattern.test(url) || url.includes('airbnb.com/calendar/ical');
+    
+    if (icalStatus) {
+        if (isValidFormat) {
+            icalStatus.textContent = '✓ Valid iCal URL format';
+            icalStatus.className = 'ical-valid';
+        } else {
+            icalStatus.textContent = '⚠ URL should be an .ics calendar link';
+            icalStatus.className = 'ical-warning';
+        }
+    }
+    
+    return isValidFormat;
+}
+
+// Save iCal URL for the current room
+async function saveIcalUrl() {
+    const roomId = currentEditRoomId;
+    if (!roomId) {
+        alert('No room selected');
+        return;
+    }
+    
+    const icalInput = document.getElementById('edit-room-ical-url');
+    const icalUrl = icalInput.value.trim();
+    const saveBtn = document.querySelector('.btn-save-ical');
+    const originalText = saveBtn.textContent;
+    
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/ical-url`, {
+            method: 'PUT',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ icalUrl })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            logger.info(`iCal URL ${icalUrl ? 'saved' : 'cleared'} for room ${roomId}`);
+            
+            // Update local room data
+            const room = roomManager.getRoomById(roomId);
+            if (room) {
+                room.icalUrl = icalUrl;
+            }
+            
+            // Enable sync button if URL is set
+            const syncBtn = document.getElementById('btn-sync-ical');
+            if (syncBtn) {
+                syncBtn.disabled = !icalUrl;
+            }
+            
+            // Show success message
+            const icalStatus = document.getElementById('ical-status');
+            if (icalStatus) {
+                icalStatus.textContent = '✓ URL saved successfully';
+                icalStatus.className = 'ical-success';
+                setTimeout(() => validateIcalUrl(icalUrl), 2000);
+            }
+        } else {
+            alert('Failed to save iCal URL: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error saving iCal URL:', error);
+        alert('Error saving iCal URL. Please try again.');
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = originalText;
+    }
+}
+
+// Sync iCal for the current room
+async function syncRoomIcal() {
+    const roomId = currentEditRoomId;
+    if (!roomId) {
+        alert('No room selected');
+        return;
+    }
+    
+    const room = roomManager.getRoomById(roomId);
+    if (!room || !room.icalUrl) {
+        alert('Please save an iCal URL first');
+        return;
+    }
+    
+    const syncBtn = document.getElementById('btn-sync-ical');
+    const originalHtml = syncBtn.innerHTML;
+    
+    syncBtn.disabled = true;
+    syncBtn.innerHTML = `
+        <svg class="spin" viewBox="0 0 24 24" width="14" height="14">
+            <path fill="currentColor" d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
+        </svg>
+        Syncing...
+    `;
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/sync-ical`, {
+            method: 'POST',
+            headers: getAuthHeaders()
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            logger.info(`iCal sync completed: ${data.syncedCount} new, ${data.skippedCount} skipped`);
+            
+            // Update last sync time display
+            const lastSyncTime = document.getElementById('last-sync-time');
+            if (lastSyncTime && data.lastSync) {
+                const syncDate = new Date(data.lastSync);
+                lastSyncTime.textContent = `Last synced: ${syncDate.toLocaleString()}`;
+                lastSyncTime.style.display = 'inline';
+            }
+            
+            // Show result message
+            const icalStatus = document.getElementById('ical-status');
+            if (icalStatus) {
+                if (data.syncedCount > 0) {
+                    icalStatus.textContent = `✓ ${data.syncedCount} new booking(s) synced!`;
+                    icalStatus.className = 'ical-success';
+                } else {
+                    icalStatus.textContent = '✓ Already up to date';
+                    icalStatus.className = 'ical-valid';
+                }
+            }
+            
+            // Reload rooms to show new bookings
+            await roomManager.loadRooms();
+            applyDashboardFilters();
+            
+        } else {
+            const icalStatus = document.getElementById('ical-status');
+            if (icalStatus) {
+                icalStatus.textContent = '✗ ' + (data.error || 'Sync failed');
+                icalStatus.className = 'ical-error';
+            }
+            alert('Sync failed: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error syncing iCal:', error);
+        const icalStatus = document.getElementById('ical-status');
+        if (icalStatus) {
+            icalStatus.textContent = '✗ Network error';
+            icalStatus.className = 'ical-error';
+        }
+        alert('Error syncing iCal. Please check your connection and try again.');
+    } finally {
+        syncBtn.disabled = false;
+        syncBtn.innerHTML = originalHtml;
+    }
+}
+
+// Sync all rooms with iCal URLs (called from dashboard or bulk action)
+async function syncAllIcal() {
+    if (!confirm('This will sync iCal data for all rooms with configured URLs. Continue?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/sync-all-ical`, {
+            method: 'POST',
+            headers: getAuthHeaders()
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            logger.info(`Bulk iCal sync completed: ${data.message}`);
+            
+            let message = `Sync completed!\n\n`;
+            for (const result of data.results) {
+                if (result.success) {
+                    message += `✓ ${result.roomName}: ${result.syncedCount} new bookings\n`;
+                } else {
+                    message += `✗ ${result.roomName}: ${result.error}\n`;
+                }
+            }
+            
+            alert(message);
+            
+            // Reload rooms to show new bookings
+            await roomManager.loadRooms();
+            applyDashboardFilters();
+            
+        } else {
+            alert('Bulk sync failed: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error in bulk iCal sync:', error);
+        alert('Error syncing all rooms. Please try again.');
+    }
+}
+
+// Save iCal URL from room card in calendar view
+async function saveRoomIcalUrl(roomId, icalUrl, saveBtn, syncBtn) {
+    const originalText = saveBtn.textContent;
+    saveBtn.disabled = true;
+    saveBtn.textContent = '...';
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/ical-url`, {
+            method: 'PUT',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ icalUrl })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            logger.info(`iCal URL ${icalUrl ? 'saved' : 'cleared'} for room ${roomId}`);
+            
+            // Update local room data
+            const room = roomManager.getRoomById(roomId);
+            if (room) {
+                room.icalUrl = icalUrl;
+            }
+            
+            // Enable/disable sync button
+            if (syncBtn) {
+                syncBtn.disabled = !icalUrl;
+            }
+            
+            // Brief success feedback
+            saveBtn.textContent = '✓';
+            setTimeout(() => {
+                saveBtn.textContent = originalText;
+            }, 1500);
+            
+        } else {
+            alert('Failed to save iCal URL: ' + (data.error || 'Unknown error'));
+            saveBtn.textContent = originalText;
+        }
+    } catch (error) {
+        console.error('Error saving iCal URL:', error);
+        alert('Error saving iCal URL. Please try again.');
+        saveBtn.textContent = originalText;
+    } finally {
+        saveBtn.disabled = false;
+    }
+}
+
+// Sync iCal from room card in calendar view
+async function syncRoomIcalFromCard(roomId, syncBtn) {
+    const room = roomManager.getRoomById(roomId);
+    if (!room || !room.icalUrl) {
+        alert('Please save an iCal URL first');
+        return;
+    }
+    
+    const originalText = syncBtn.textContent;
+    syncBtn.disabled = true;
+    syncBtn.textContent = '⏳';
+    syncBtn.classList.add('syncing');
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/sync-ical`, {
+            method: 'POST',
+            headers: getAuthHeaders()
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            logger.info(`iCal sync completed: ${data.syncedCount} new, ${data.skippedCount} skipped`);
+            
+            // Show brief success
+            syncBtn.textContent = '✓';
+            
+            if (data.syncedCount > 0) {
+                // Reload rooms and refresh calendar to show new bookings
+                await roomManager.loadRooms();
+                applyDashboardFilters();
+            } else {
+                setTimeout(() => {
+                    syncBtn.textContent = originalText;
+                    syncBtn.classList.remove('syncing');
+                }, 1500);
+            }
+            
+        } else {
+            alert('Sync failed: ' + (data.error || 'Unknown error'));
+            syncBtn.textContent = '✗';
+            setTimeout(() => {
+                syncBtn.textContent = originalText;
+            }, 1500);
+        }
+    } catch (error) {
+        console.error('Error syncing iCal:', error);
+        alert('Error syncing iCal. Please check your connection and try again.');
+        syncBtn.textContent = '✗';
+        setTimeout(() => {
+            syncBtn.textContent = originalText;
+        }, 1500);
+    } finally {
+        syncBtn.disabled = false;
+        syncBtn.classList.remove('syncing');
     }
 }

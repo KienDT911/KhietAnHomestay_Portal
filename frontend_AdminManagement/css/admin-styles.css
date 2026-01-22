@@ -1129,6 +1129,262 @@ html, body {
     font-family: 'Poppins', sans-serif;
 }
 
+/* ===== iCal Sync Section ===== */
+/* iCal section in room card (calendar view) */
+.room-ical-section {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border-color);
+    cursor: default;
+}
+
+.ical-input-row {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.ical-url-input {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: 'Poppins', sans-serif;
+    background: white;
+}
+
+.ical-url-input:focus {
+    outline: none;
+    border-color: var(--sage-green);
+    box-shadow: 0 0 0 2px rgba(123, 155, 126, 0.15);
+}
+
+.ical-url-input::placeholder {
+    color: var(--warm-grey);
+    font-size: 10px;
+}
+
+.btn-ical-save,
+.btn-ical-sync {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.btn-ical-save:hover {
+    background: var(--sage-green);
+    border-color: var(--sage-green);
+    color: white;
+}
+
+.btn-ical-sync:hover:not(:disabled) {
+    background: var(--sage-green);
+    border-color: var(--sage-green);
+    color: white;
+}
+
+.btn-ical-sync:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.btn-ical-sync.syncing {
+    animation: pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.ical-last-sync {
+    display: block;
+    margin-top: 4px;
+    font-size: 9px;
+    color: var(--warm-grey);
+    font-style: italic;
+}
+
+/* Legacy iCal section styles (for edit modal if used elsewhere) */
+.ical-section {
+    background: linear-gradient(135deg, #f8faf8 0%, #f0f5f0 100%);
+    border: 1px solid var(--light-sage);
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 10px;
+}
+
+.ical-section .label-with-action {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.ical-section label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: var(--dark-green);
+    margin-bottom: 0;
+}
+
+.ical-icon {
+    color: var(--sage-green);
+}
+
+.ical-input-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.ical-input-group input {
+    flex: 1;
+    padding: 10px 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    font-size: 13px;
+    font-family: 'Poppins', sans-serif;
+}
+
+.ical-input-group input:focus {
+    outline: none;
+    border-color: var(--sage-green);
+    box-shadow: 0 0 0 3px rgba(123, 155, 126, 0.1);
+}
+
+.btn-save-ical {
+    background: var(--sage-green);
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 13px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.btn-save-ical:hover {
+    background: var(--olive-green);
+}
+
+.btn-save-ical:disabled {
+    background: var(--warm-grey);
+    cursor: not-allowed;
+}
+
+.btn-sync-ical {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    color: var(--sage-green);
+    border: 1px solid var(--sage-green);
+    padding: 6px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 12px;
+    transition: all 0.2s ease;
+}
+
+.btn-sync-ical:hover:not(:disabled) {
+    background: var(--sage-green);
+    color: white;
+}
+
+.btn-sync-ical:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-sync-ical svg {
+    transition: transform 0.3s ease;
+}
+
+.btn-sync-ical:hover:not(:disabled) svg {
+    transform: rotate(180deg);
+}
+
+.btn-sync-ical .spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.ical-hint {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--text-light);
+    margin-bottom: 4px;
+}
+
+.ical-valid {
+    color: var(--success-color);
+}
+
+.ical-success {
+    color: var(--success-color);
+    font-weight: 500;
+}
+
+.ical-warning {
+    color: var(--warm-brown);
+}
+
+.ical-error {
+    color: var(--error-color);
+}
+
+.ical-help {
+    display: block;
+    font-size: 11px;
+    color: var(--warm-grey);
+    font-style: italic;
+}
+
+#last-sync-time {
+    color: var(--text-light);
+    font-style: italic;
+}
+
+/* Mobile responsive for iCal section */
+@media (max-width: 600px) {
+    .ical-input-group {
+        flex-direction: column;
+    }
+    
+    .ical-section .label-with-action {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .btn-sync-ical {
+        align-self: flex-start;
+    }
+}
+
 .form-actions {
     display: flex;
     gap: 15px;

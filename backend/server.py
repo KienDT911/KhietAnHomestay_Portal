@@ -26,6 +26,15 @@ except ImportError:
     CLOUDINARY_AVAILABLE = False
     print("⚠️ Cloudinary not installed. Image uploads will use local storage.")
 
+# iCalendar for parsing Airbnb calendar feeds
+try:
+    from icalendar import Calendar
+    import requests
+    ICAL_AVAILABLE = True
+except ImportError:
+    ICAL_AVAILABLE = False
+    print("⚠️ icalendar not installed. iCal sync will be unavailable.")
+
 # Custom JSON encoder to handle datetime and ObjectId
 class MongoJSONEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -286,6 +295,8 @@ def convert_room_for_api(room):
         'description': room.get('description', ''),
         'amenities': room.get('amenities', []),
         'bookedIntervals': room.get('bookedIntervals', []),  # Include booking intervals for calendar
+        'icalUrl': room.get('icalUrl', ''),  # Airbnb iCal URL for sync
+        'lastIcalSync': str(room.get('lastIcalSync', '')) if room.get('lastIcalSync') else None,
         'created_at': str(room.get('created_at', '')) if room.get('created_at') else None,
         'updated_at': str(room.get('updated_at', '')) if room.get('updated_at') else None
     }
@@ -1680,6 +1691,401 @@ def update_booking(room_id):
             'success': True,
             'message': 'Booking updated successfully'
         }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# ===== iCal Sync API Endpoints =====
+
+@app.route('/backend/api/admin/rooms/<room_id>/ical-url', methods=['PUT'])
+@token_required
+def update_ical_url(room_id):
+    """Update the iCal URL for a room"""
+    try:
+        data = request.json
+        ical_url = data.get('icalUrl', '').strip()
+        
+        # Validate URL format if provided
+        if ical_url and not ical_url.startswith(('http://', 'https://')):
+            return jsonify({
+                'success': False,
+                'error': 'Invalid URL format. Must start with http:// or https://'
+            }), 400
+        
+        if rooms_collection is None:
+            # Fallback mode
+            room = next((r for r in fallback_rooms if r.get('_id') == room_id), None)
+            if not room:
+                return jsonify({
+                    'success': False,
+                    'error': 'Room not found'
+                }), 404
+            
+            room['icalUrl'] = ical_url
+            room['updated_at'] = datetime.now().isoformat()
+            
+            # Save to JSON
+            with open(json_file_path, 'w') as f:
+                json.dump(fallback_rooms, f, indent=2)
+        else:
+            # MongoDB mode
+            room = rooms_collection.find_one({'_id': room_id})
+            if not room:
+                try:
+                    obj_id = ObjectId(room_id)
+                    room = rooms_collection.find_one({'_id': obj_id})
+                    room_id_filter = {'_id': obj_id}
+                except:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Room not found'
+                    }), 404
+            else:
+                room_id_filter = {'_id': room_id}
+            
+            result = rooms_collection.update_one(
+                room_id_filter,
+                {
+                    '$set': {
+                        'icalUrl': ical_url,
+                        'updated_at': datetime.now()
+                    }
+                }
+            )
+            
+            if result.matched_count == 0:
+                return jsonify({
+                    'success': False,
+                    'error': 'Room not found'
+                }), 404
+        
+        return jsonify({
+            'success': True,
+            'message': 'iCal URL updated successfully',
+            'icalUrl': ical_url
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/backend/api/admin/rooms/<room_id>/sync-ical', methods=['POST'])
+@token_required
+def sync_ical(room_id):
+    """Sync bookings from iCal URL for a room"""
+    try:
+        if not ICAL_AVAILABLE:
+            return jsonify({
+                'success': False,
+                'error': 'iCal sync is not available. Please install icalendar package.'
+            }), 503
+        
+        # Get the room
+        if rooms_collection is None:
+            room = next((r for r in fallback_rooms if r.get('_id') == room_id), None)
+        else:
+            room = rooms_collection.find_one({'_id': room_id})
+            if not room:
+                try:
+                    obj_id = ObjectId(room_id)
+                    room = rooms_collection.find_one({'_id': obj_id})
+                except:
+                    pass
+        
+        if not room:
+            return jsonify({
+                'success': False,
+                'error': 'Room not found'
+            }), 404
+        
+        ical_url = room.get('icalUrl', '')
+        if not ical_url:
+            return jsonify({
+                'success': False,
+                'error': 'No iCal URL configured for this room'
+            }), 400
+        
+        # Fetch iCal data from URL
+        try:
+            response = requests.get(ical_url, timeout=30, headers={
+                'User-Agent': 'KhietAnHomestay-Calendar-Sync/1.0'
+            })
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            return jsonify({
+                'success': False,
+                'error': f'Failed to fetch iCal data: {str(e)}'
+            }), 502
+        
+        # Parse iCal data
+        try:
+            cal = Calendar.from_ical(response.content)
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Failed to parse iCal data: {str(e)}'
+            }), 400
+        
+        # Extract booking events
+        new_bookings = []
+        existing_intervals = room.get('bookedIntervals', [])
+        synced_count = 0
+        skipped_count = 0
+        
+        for component in cal.walk():
+            if component.name == 'VEVENT':
+                try:
+                    # Get event details
+                    dtstart = component.get('DTSTART')
+                    dtend = component.get('DTEND')
+                    summary = str(component.get('SUMMARY', 'Airbnb Booking'))
+                    uid = str(component.get('UID', ''))
+                    
+                    if not dtstart or not dtend:
+                        continue
+                    
+                    # Convert to date strings (YYYY-MM-DD)
+                    start_date = dtstart.dt
+                    end_date = dtend.dt
+                    
+                    # Handle datetime vs date objects
+                    if hasattr(start_date, 'date'):
+                        start_date = start_date.date()
+                    if hasattr(end_date, 'date'):
+                        end_date = end_date.date()
+                    
+                    check_in = start_date.strftime('%Y-%m-%d')
+                    check_out = end_date.strftime('%Y-%m-%d')
+                    
+                    # Skip past bookings
+                    today = datetime.now().date()
+                    if end_date < today:
+                        skipped_count += 1
+                        continue
+                    
+                    # Check if booking already exists (avoid duplicates)
+                    is_duplicate = False
+                    for interval in existing_intervals:
+                        if interval.get('checkIn') == check_in and interval.get('checkOut') == check_out:
+                            is_duplicate = True
+                            break
+                        # Also check by UID if available
+                        if uid and interval.get('icalUid') == uid:
+                            is_duplicate = True
+                            break
+                    
+                    if is_duplicate:
+                        skipped_count += 1
+                        continue
+                    
+                    # Create booking interval
+                    new_interval = {
+                        'checkIn': check_in,
+                        'checkOut': check_out,
+                        'guestName': summary if summary != 'Reserved' else 'Airbnb Guest',
+                        'guestPhone': '',
+                        'guestEmail': '',
+                        'notes': f'Synced from Airbnb iCal',
+                        'source': 'airbnb_ical',
+                        'icalUid': uid,
+                        'createdAt': datetime.now().isoformat()
+                    }
+                    
+                    new_bookings.append(new_interval)
+                    synced_count += 1
+                    
+                except Exception as e:
+                    print(f"Error processing iCal event: {e}")
+                    continue
+        
+        # Update room with new bookings
+        if new_bookings:
+            if rooms_collection is None:
+                # Fallback mode
+                if 'bookedIntervals' not in room:
+                    room['bookedIntervals'] = []
+                room['bookedIntervals'].extend(new_bookings)
+                room['lastIcalSync'] = datetime.now().isoformat()
+                room['updated_at'] = datetime.now().isoformat()
+                
+                with open(json_file_path, 'w') as f:
+                    json.dump(fallback_rooms, f, indent=2)
+            else:
+                # MongoDB mode
+                room_id_filter = {'_id': room_id} if not isinstance(room.get('_id'), ObjectId) else {'_id': room.get('_id')}
+                
+                rooms_collection.update_one(
+                    room_id_filter,
+                    {
+                        '$push': {'bookedIntervals': {'$each': new_bookings}},
+                        '$set': {
+                            'lastIcalSync': datetime.now(),
+                            'updated_at': datetime.now()
+                        }
+                    }
+                )
+        else:
+            # Update last sync time even if no new bookings
+            if rooms_collection is not None:
+                room_id_filter = {'_id': room_id} if not isinstance(room.get('_id'), ObjectId) else {'_id': room.get('_id')}
+                rooms_collection.update_one(
+                    room_id_filter,
+                    {'$set': {'lastIcalSync': datetime.now(), 'updated_at': datetime.now()}}
+                )
+        
+        return jsonify({
+            'success': True,
+            'message': f'iCal sync completed. {synced_count} new bookings added, {skipped_count} skipped.',
+            'syncedCount': synced_count,
+            'skippedCount': skipped_count,
+            'lastSync': datetime.now().isoformat()
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/backend/api/admin/sync-all-ical', methods=['POST'])
+@token_required
+def sync_all_ical():
+    """Sync iCal for all rooms that have an iCal URL configured"""
+    try:
+        if not ICAL_AVAILABLE:
+            return jsonify({
+                'success': False,
+                'error': 'iCal sync is not available. Please install icalendar package.'
+            }), 503
+        
+        results = []
+        
+        if rooms_collection is None:
+            rooms = fallback_rooms
+        else:
+            rooms = list(rooms_collection.find())
+        
+        for room in rooms:
+            ical_url = room.get('icalUrl', '')
+            room_id = str(room.get('_id', ''))
+            room_name = room.get('name', 'Unknown')
+            
+            if not ical_url:
+                continue
+            
+            try:
+                # Fetch and parse iCal
+                response = requests.get(ical_url, timeout=30, headers={
+                    'User-Agent': 'KhietAnHomestay-Calendar-Sync/1.0'
+                })
+                response.raise_for_status()
+                cal = Calendar.from_ical(response.content)
+                
+                existing_intervals = room.get('bookedIntervals', [])
+                new_bookings = []
+                synced_count = 0
+                
+                for component in cal.walk():
+                    if component.name == 'VEVENT':
+                        try:
+                            dtstart = component.get('DTSTART')
+                            dtend = component.get('DTEND')
+                            summary = str(component.get('SUMMARY', 'Airbnb Booking'))
+                            uid = str(component.get('UID', ''))
+                            
+                            if not dtstart or not dtend:
+                                continue
+                            
+                            start_date = dtstart.dt
+                            end_date = dtend.dt
+                            
+                            if hasattr(start_date, 'date'):
+                                start_date = start_date.date()
+                            if hasattr(end_date, 'date'):
+                                end_date = end_date.date()
+                            
+                            check_in = start_date.strftime('%Y-%m-%d')
+                            check_out = end_date.strftime('%Y-%m-%d')
+                            
+                            today = datetime.now().date()
+                            if end_date < today:
+                                continue
+                            
+                            is_duplicate = False
+                            for interval in existing_intervals:
+                                if (interval.get('checkIn') == check_in and interval.get('checkOut') == check_out) or \
+                                   (uid and interval.get('icalUid') == uid):
+                                    is_duplicate = True
+                                    break
+                            
+                            if is_duplicate:
+                                continue
+                            
+                            new_interval = {
+                                'checkIn': check_in,
+                                'checkOut': check_out,
+                                'guestName': summary if summary != 'Reserved' else 'Airbnb Guest',
+                                'guestPhone': '',
+                                'guestEmail': '',
+                                'notes': f'Synced from Airbnb iCal',
+                                'source': 'airbnb_ical',
+                                'icalUid': uid,
+                                'createdAt': datetime.now().isoformat()
+                            }
+                            
+                            new_bookings.append(new_interval)
+                            synced_count += 1
+                            
+                        except Exception:
+                            continue
+                
+                # Update room
+                if new_bookings:
+                    if rooms_collection is not None:
+                        room_id_filter = {'_id': room.get('_id')}
+                        rooms_collection.update_one(
+                            room_id_filter,
+                            {
+                                '$push': {'bookedIntervals': {'$each': new_bookings}},
+                                '$set': {'lastIcalSync': datetime.now(), 'updated_at': datetime.now()}
+                            }
+                        )
+                    else:
+                        room['bookedIntervals'] = existing_intervals + new_bookings
+                        room['lastIcalSync'] = datetime.now().isoformat()
+                
+                results.append({
+                    'roomId': room_id,
+                    'roomName': room_name,
+                    'success': True,
+                    'syncedCount': synced_count
+                })
+                
+            except Exception as e:
+                results.append({
+                    'roomId': room_id,
+                    'roomName': room_name,
+                    'success': False,
+                    'error': str(e)
+                })
+        
+        # Save fallback data if using JSON
+        if rooms_collection is None:
+            with open(json_file_path, 'w') as f:
+                json.dump(fallback_rooms, f, indent=2)
+        
+        total_synced = sum(r.get('syncedCount', 0) for r in results if r.get('success'))
+        successful_rooms = sum(1 for r in results if r.get('success'))
+        
+        return jsonify({
+            'success': True,
+            'message': f'Synced {successful_rooms} rooms, {total_synced} total new bookings',
+            'results': results
+        }), 200
+        
     except Exception as e:
         return jsonify({
             'success': False,
