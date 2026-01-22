@@ -395,6 +395,9 @@ class RoomManager {
                 console.log(`✓ Loaded ${this.rooms.length} rooms from database`);
                 updateDashboard();
                 displayRooms();
+                
+                // Auto-sync iCal for all rooms with configured URLs (runs in background)
+                autoSyncAllIcal();
             } else {
                 console.error('Failed to load rooms:', result.error);
                 alert('Failed to load rooms from database');
@@ -3935,5 +3938,69 @@ async function syncRoomIcalFromCard(roomId, syncBtn) {
     } finally {
         syncBtn.disabled = false;
         syncBtn.classList.remove('syncing');
+    }
+}
+
+// Flag to prevent multiple auto-syncs running simultaneously
+let isAutoSyncing = false;
+
+// Auto-sync all rooms with iCal URLs on page load (runs silently in background)
+async function autoSyncAllIcal() {
+    // Prevent multiple simultaneous auto-syncs
+    if (isAutoSyncing) {
+        console.log('⏸️ Auto-sync already in progress, skipping');
+        return;
+    }
+    
+    // Get all rooms with iCal URLs
+    const rooms = roomManager.getAllRooms();
+    const roomsWithIcal = rooms.filter(r => r.icalUrl && r.icalUrl.trim() !== '');
+    
+    if (roomsWithIcal.length === 0) {
+        console.log('📅 No rooms with iCal URLs configured');
+        return;
+    }
+    
+    isAutoSyncing = true;
+    console.log(`📅 Auto-syncing iCal for ${roomsWithIcal.length} room(s)...`);
+    
+    let totalSynced = 0;
+    let hasNewBookings = false;
+    
+    try {
+        // Sync all rooms with iCal URLs via the bulk endpoint
+        const response = await fetch(`${API_BASE_URL}/sync-all-ical`, {
+            method: 'POST',
+            headers: getAuthHeaders()
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            // Count total new bookings
+            for (const result of data.results) {
+                if (result.success && result.syncedCount > 0) {
+                    totalSynced += result.syncedCount;
+                    hasNewBookings = true;
+                    console.log(`  ✓ ${result.roomName}: ${result.syncedCount} new booking(s)`);
+                }
+            }
+            
+            if (hasNewBookings) {
+                console.log(`📅 Auto-sync complete: ${totalSynced} new booking(s) imported`);
+                
+                // Reload rooms silently to show new bookings
+                await roomManager.loadRoomsSilent();
+            } else {
+                console.log('📅 Auto-sync complete: No new bookings');
+            }
+        } else {
+            console.warn('📅 Auto-sync failed:', data.error || 'Unknown error');
+        }
+    } catch (error) {
+        console.warn('📅 Auto-sync error:', error.message);
+        // Don't show alert for auto-sync errors - it's background operation
+    } finally {
+        isAutoSyncing = false;
     }
 }
