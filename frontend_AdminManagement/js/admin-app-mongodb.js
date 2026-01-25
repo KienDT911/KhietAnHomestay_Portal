@@ -970,6 +970,7 @@ function createRoomCalendarRow(room, checkinDate, checkoutDate) {
             </div>
         </div>
         ` : ''}
+        ${isAdmin ? `
         <div class="room-ical-section" data-room-id="${roomId}">
             <div class="ical-input-row">
                 <input type="url" class="ical-url-input" 
@@ -981,32 +982,36 @@ function createRoomCalendarRow(room, checkinDate, checkoutDate) {
             </div>
             ${lastSync ? `<small class="ical-last-sync">Last sync: ${lastSync}</small>` : ''}
         </div>
+        ` : ''}
     `;
     infoPanel.style.cursor = 'pointer';
     
     // Click handler for the main panel (excluding iCal section)
     infoPanel.addEventListener('click', (e) => {
-        // Don't trigger edit if clicking on iCal section
+        // Don't trigger edit if clicking on iCal section or promotion section
         if (e.target.closest('.room-ical-section')) return;
+        if (e.target.closest('.room-promotion-section')) return;
         openQuickEditModal(roomId);
     });
     
-    // Setup iCal button handlers
+    // Setup iCal button handlers (admin only)
     const icalSection = infoPanel.querySelector('.room-ical-section');
-    const icalInput = icalSection.querySelector('.ical-url-input');
-    const saveBtn = icalSection.querySelector('.btn-ical-save');
-    const syncBtn = icalSection.querySelector('.btn-ical-sync');
-    
-    // Prevent click propagation on iCal elements
-    icalInput.addEventListener('click', (e) => e.stopPropagation());
-    saveBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        saveRoomIcalUrl(roomId, icalInput.value.trim(), saveBtn, syncBtn);
-    });
-    syncBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        syncRoomIcalFromCard(roomId, syncBtn);
-    });
+    if (icalSection) {
+        const icalInput = icalSection.querySelector('.ical-url-input');
+        const saveBtn = icalSection.querySelector('.btn-ical-save');
+        const syncBtn = icalSection.querySelector('.btn-ical-sync');
+        
+        // Prevent click propagation on iCal elements
+        icalInput.addEventListener('click', (e) => e.stopPropagation());
+        saveBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            saveRoomIcalUrl(roomId, icalInput.value.trim(), saveBtn, syncBtn);
+        });
+        syncBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            syncRoomIcalFromCard(roomId, syncBtn);
+        });
+    }
     
     // Setup promotion handlers (admin only)
     const promotionSection = infoPanel.querySelector('.room-promotion-section');
