@@ -927,6 +927,17 @@ function createRoomCalendarRow(room, checkinDate, checkoutDate) {
     const icalUrl = room.icalUrl || '';
     const lastSync = room.lastIcalSync ? new Date(room.lastIcalSync).toLocaleDateString() : '';
     
+    // Check if promotion is active
+    const hasPromotion = room.promotion && room.promotion.active;
+    const discountPrice = room.promotion ? room.promotion.discountPrice : '';
+    const role = sessionStorage.getItem('adminRole') || 'manager';
+    const isAdmin = role === 'admin';
+    
+    // Build price display with promotion support
+    const priceDisplay = hasPromotion 
+        ? `<span class="original-price">$${room.price}</span><span class="discount-price">$${discountPrice}</span>` 
+        : `$${room.price}`;
+    
     infoPanel.innerHTML = `
         <div class="room-header-row">
             <span class="room-number">#${roomId}</span>
@@ -934,11 +945,31 @@ function createRoomCalendarRow(room, checkinDate, checkoutDate) {
         </div>
         <div class="room-details-row">
             <div class="room-details">
-                <p>$${room.price}/night</p>
+                <p class="room-price-line">${priceDisplay}/night</p>
                 <p>${room.capacity || room.persons} guests</p>
             </div>
             <div class="room-image-placeholder"></div>
         </div>
+        ${isAdmin ? `
+        <div class="room-promotion-section" data-room-id="${roomId}">
+            <div class="promotion-toggle-row">
+                <label class="promotion-toggle">
+                    <input type="checkbox" class="promotion-checkbox" ${hasPromotion ? 'checked' : ''}>
+                    <span class="toggle-slider"></span>
+                </label>
+                <span class="promotion-label">Promotion</span>
+            </div>
+            <div class="promotion-price-input" style="display: ${hasPromotion ? 'flex' : 'none'};">
+                <span class="currency-symbol">$</span>
+                <input type="number" class="discount-price-input" 
+                    placeholder="Discount price" 
+                    value="${discountPrice}"
+                    min="0" step="0.01"
+                    title="Enter discounted price">
+                <button type="button" class="btn-save-promotion" title="Save promotion">💾</button>
+            </div>
+        </div>
+        ` : ''}
         <div class="room-ical-section" data-room-id="${roomId}">
             <div class="ical-input-row">
                 <input type="url" class="ical-url-input" 
@@ -976,6 +1007,51 @@ function createRoomCalendarRow(room, checkinDate, checkoutDate) {
         e.stopPropagation();
         syncRoomIcalFromCard(roomId, syncBtn);
     });
+    
+    // Setup promotion handlers (admin only)
+    const promotionSection = infoPanel.querySelector('.room-promotion-section');
+    if (promotionSection) {
+        const promotionCheckbox = promotionSection.querySelector('.promotion-checkbox');
+        const promotionPriceInput = promotionSection.querySelector('.promotion-price-input');
+        const discountInput = promotionSection.querySelector('.discount-price-input');
+        const savePromotionBtn = promotionSection.querySelector('.btn-save-promotion');
+        
+        // Prevent click propagation on promotion elements
+        promotionSection.addEventListener('click', (e) => e.stopPropagation());
+        
+        // Toggle promotion price input visibility
+        promotionCheckbox.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            promotionPriceInput.style.display = isChecked ? 'flex' : 'none';
+            
+            // If turning off promotion, save immediately
+            if (!isChecked) {
+                saveRoomPromotion(roomId, false, null, savePromotionBtn);
+            }
+        });
+        
+        // Save promotion on button click
+        savePromotionBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isActive = promotionCheckbox.checked;
+            const discountPrice = parseFloat(discountInput.value);
+            
+            if (isActive && (!discountPrice || discountPrice <= 0)) {
+                alert('Please enter a valid discount price');
+                return;
+            }
+            
+            saveRoomPromotion(roomId, isActive, discountPrice, savePromotionBtn);
+        });
+        
+        // Allow Enter key to save promotion
+        discountInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                savePromotionBtn.click();
+            }
+        });
+    }
 
     // Image / upload handling
     (function setupRoomImage() {
@@ -3877,6 +3953,55 @@ async function saveRoomIcalUrl(roomId, icalUrl, saveBtn, syncBtn) {
     } catch (error) {
         console.error('Error saving iCal URL:', error);
         alert('Error saving iCal URL. Please try again.');
+        saveBtn.textContent = originalText;
+    } finally {
+        saveBtn.disabled = false;
+    }
+}
+
+// Save room promotion (discount price)
+async function saveRoomPromotion(roomId, isActive, discountPrice, saveBtn) {
+    const originalText = saveBtn.textContent;
+    saveBtn.disabled = true;
+    saveBtn.textContent = '...';
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/promotion`, {
+            method: 'PUT',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ 
+                active: isActive, 
+                discountPrice: isActive ? discountPrice : null 
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            logger.info(`Promotion ${isActive ? 'activated' : 'deactivated'} for room ${roomId}`);
+            
+            // Update local room data
+            const room = roomManager.getRoomById(roomId);
+            if (room) {
+                room.promotion = isActive ? { active: true, discountPrice: discountPrice } : null;
+            }
+            
+            // Refresh the calendar display to show updated prices
+            applyDashboardFilters();
+            
+            // Brief success feedback
+            saveBtn.textContent = '✓';
+            setTimeout(() => {
+                saveBtn.textContent = originalText;
+            }, 1500);
+            
+        } else {
+            alert('Failed to save promotion: ' + (data.error || 'Unknown error'));
+            saveBtn.textContent = originalText;
+        }
+    } catch (error) {
+        console.error('Error saving promotion:', error);
+        alert('Error saving promotion. Please try again.');
         saveBtn.textContent = originalText;
     } finally {
         saveBtn.disabled = false;

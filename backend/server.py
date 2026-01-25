@@ -306,6 +306,9 @@ def convert_room_for_api(room):
     # Include multi-image structure
     if room.get('images'):
         api_room['images'] = room.get('images')
+    # Include promotion data if present
+    if room.get('promotion'):
+        api_room['promotion'] = room.get('promotion')
     return api_room
 
 # ===== Authentication API Endpoints =====
@@ -1767,6 +1770,101 @@ def update_ical_url(room_id):
             'icalUrl': ical_url
         }), 200
     except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/backend/api/admin/rooms/<room_id>/promotion', methods=['PUT'])
+@admin_required
+def update_room_promotion(room_id):
+    """Update the promotion (discount price) for a room - Admin only"""
+    try:
+        data = request.json
+        is_active = data.get('active', False)
+        discount_price = data.get('discountPrice')
+        
+        # Validate discount price if promotion is active
+        if is_active:
+            if discount_price is None or discount_price <= 0:
+                return jsonify({
+                    'success': False,
+                    'error': 'Discount price must be a positive number'
+                }), 400
+            discount_price = float(discount_price)
+        
+        if rooms_collection is None:
+            # Fallback mode
+            room = next((r for r in fallback_rooms if r.get('_id') == room_id), None)
+            if not room:
+                return jsonify({
+                    'success': False,
+                    'error': 'Room not found'
+                }), 404
+            
+            if is_active:
+                room['promotion'] = {
+                    'active': True,
+                    'discountPrice': discount_price
+                }
+            else:
+                room.pop('promotion', None)
+            
+            room['updated_at'] = datetime.now().isoformat()
+            
+            # Save to JSON
+            try:
+                with open(json_file_path, 'w') as f:
+                    json.dump(fallback_rooms, f, indent=2)
+            except Exception as save_error:
+                print(f"Warning: Could not save to JSON: {save_error}")
+        else:
+            # MongoDB mode
+            room = rooms_collection.find_one({'_id': room_id})
+            if not room:
+                try:
+                    obj_id = ObjectId(room_id)
+                    room = rooms_collection.find_one({'_id': obj_id})
+                    room_id_filter = {'_id': obj_id}
+                except:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Room not found'
+                    }), 404
+            else:
+                room_id_filter = {'_id': room_id}
+            
+            if is_active:
+                update_doc = {
+                    '$set': {
+                        'promotion': {
+                            'active': True,
+                            'discountPrice': discount_price
+                        },
+                        'updated_at': datetime.now(timezone.utc)
+                    }
+                }
+            else:
+                update_doc = {
+                    '$unset': {'promotion': ''},
+                    '$set': {'updated_at': datetime.now(timezone.utc)}
+                }
+            
+            result = rooms_collection.update_one(room_id_filter, update_doc)
+            
+            if result.matched_count == 0:
+                return jsonify({
+                    'success': False,
+                    'error': 'Room not found'
+                }), 404
+        
+        return jsonify({
+            'success': True,
+            'message': f'Promotion {"activated" if is_active else "deactivated"} successfully',
+            'promotion': {'active': is_active, 'discountPrice': discount_price} if is_active else None
+        }), 200
+    except Exception as e:
+        print(f"Update promotion error: {e}")
         return jsonify({
             'success': False,
             'error': str(e)

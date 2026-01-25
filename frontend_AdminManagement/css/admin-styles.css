@@ -2205,6 +2205,148 @@ html, body {
     margin: 3px 0;
 }
 
+/* Room Price with Promotion Styling */
+.room-price-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.room-price-line .original-price {
+    color: #999;
+    text-decoration: line-through;
+    font-size: 12px;
+}
+
+.room-price-line .discount-price {
+    color: #d32f2f;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+/* Promotion Section Styles */
+.room-promotion-section {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(212, 184, 150, 0.4);
+}
+
+.promotion-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.promotion-label {
+    font-size: 12px;
+    color: var(--text-dark);
+    font-weight: 500;
+}
+
+/* Toggle Switch */
+.promotion-toggle {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+}
+
+.promotion-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.3s;
+    border-radius: 20px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+
+.promotion-toggle input:checked + .toggle-slider {
+    background-color: var(--sage-green);
+}
+
+.promotion-toggle input:checked + .toggle-slider:before {
+    transform: translateX(16px);
+}
+
+/* Promotion Price Input */
+.promotion-price-input {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(212, 184, 150, 0.5);
+    border-radius: 6px;
+    padding: 4px 6px;
+}
+
+.promotion-price-input .currency-symbol {
+    color: var(--text-light);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.discount-price-input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 13px;
+    color: var(--text-dark);
+    width: 60px;
+    padding: 4px;
+}
+
+.discount-price-input:focus {
+    outline: none;
+}
+
+.discount-price-input::placeholder {
+    color: #aaa;
+    font-size: 11px;
+}
+
+.btn-save-promotion {
+    background: var(--sage-green);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s ease;
+}
+
+.btn-save-promotion:hover {
+    background: var(--dark-green);
+}
+
+.btn-save-promotion:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
 .calendar-panel {
     flex: 1;
     overflow: visible;
