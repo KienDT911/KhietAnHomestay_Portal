@@ -50,34 +50,27 @@ load_dotenv()
 # Initialize Flask app
 app = Flask(__name__, static_folder='static', static_url_path='/backend/static')
 
-# Configure CORS for global access - explicitly allow all origins and methods
-CORS(app, resources={
-    r"/*": {
-        "origins": ["*", "https://www.khietanportal.site", "https://khietanportal.site", "https://khietanportal.vercel.app", "http://localhost:5500", "http://127.0.0.1:5500"],
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-        "allow_headers": ["Content-Type", "Authorization", "Accept", "X-Requested-With", "Origin"],
-        "expose_headers": ["Content-Type", "Authorization"],
-        "supports_credentials": True,
-        "max_age": 86400
-    }
-})
+# Disable Flask-CORS and handle CORS manually for full control
+# CORS(app) - disabled to prevent duplicate headers
 
-# Add CORS headers to all responses
+# Add CORS headers to ALL responses manually
 @app.after_request
 def after_request(response):
     origin = request.headers.get('Origin', '*')
-    response.headers.add('Access-Control-Allow-Origin', origin)
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With, Origin')
-    response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH')
-    response.headers.add('Access-Control-Allow-Credentials', 'true')
-    response.headers.add('Access-Control-Max-Age', '86400')
+    # Set headers (not add) to prevent duplicates
+    response.headers['Access-Control-Allow-Origin'] = origin
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, Accept, X-Requested-With, Origin'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    response.headers['Access-Control-Max-Age'] = '86400'
     return response
 
-# Handle OPTIONS preflight requests globally
+# Handle OPTIONS preflight requests globally for ALL routes
 @app.route('/<path:path>', methods=['OPTIONS'])
-def handle_options(path):
-    response = app.make_default_options_response()
-    return response
+@app.route('/', methods=['OPTIONS'])
+def handle_options(path=''):
+    response = jsonify({'success': True})
+    return response, 200
 
 # Initialize variables
 client = None
@@ -181,9 +174,12 @@ JWT_EXPIRATION_HOURS = 24  # Token expires after 24 hours
 
 # Users collection for authentication
 users_collection = None
+finance_collection = None
 if db is not None:
     users_collection = db['admin_users']
+    finance_collection = db['finance_transactions']
     print("✓ Users collection initialized")
+    print("✓ Finance collection initialized")
     
     # Initialize default admin users if collection is empty (first run only)
     try:
@@ -240,6 +236,10 @@ def token_required(f):
     """Decorator to require valid JWT token for protected routes"""
     @wraps(f)
     def decorated(*args, **kwargs):
+        # Allow OPTIONS requests to pass through without authentication (for CORS preflight)
+        if request.method == 'OPTIONS':
+            return f(*args, **kwargs)
+        
         token = None
         
         # Check for token in Authorization header
@@ -345,6 +345,11 @@ def login():
         # Generate JWT token
         token = generate_token(user)
         
+        # Get user permissions (admins have all permissions by default)
+        permissions = user.get('permissions', [])
+        if user.get('role') == 'admin':
+            permissions = ['dashboard', 'rooms', 'add-room', 'manage-users', 'finance']
+        
         return jsonify({
             'success': True,
             'message': 'Login successful',
@@ -352,7 +357,8 @@ def login():
             'user': {
                 'username': user.get('username'),
                 'role': user.get('role'),
-                'displayName': user.get('displayName')
+                'displayName': user.get('displayName'),
+                'permissions': permissions
             }
         }), 200
         
@@ -364,12 +370,28 @@ def login():
 @token_required
 def verify_auth():
     """Verify if current token is valid"""
+    # Fetch fresh user data from database for permissions
+    user = None
+    if users_collection is not None:
+        try:
+            user = users_collection.find_one({'username': request.current_user.get('username')})
+        except:
+            pass
+    
+    # Get permissions from database user (or default)
+    permissions = []
+    if user:
+        permissions = user.get('permissions', [])
+        if user.get('role') == 'admin':
+            permissions = ['dashboard', 'rooms', 'add-room', 'manage-users', 'finance']
+    
     return jsonify({
         'success': True,
         'user': {
             'username': request.current_user.get('username'),
             'role': request.current_user.get('role'),
-            'displayName': request.current_user.get('displayName')
+            'displayName': request.current_user.get('displayName'),
+            'permissions': permissions
         }
     }), 200
 
@@ -460,6 +482,7 @@ def create_user():
         password = data.get('password', '')
         role = data.get('role', 'manager')
         displayName = data.get('displayName', username)
+        permissions = data.get('permissions', ['dashboard'])  # Default to dashboard only
         
         if not username or not password:
             return jsonify({'success': False, 'error': 'Username and password required'}), 400
@@ -469,6 +492,10 @@ def create_user():
         
         if role not in ['admin', 'manager']:
             return jsonify({'success': False, 'error': 'Role must be admin or manager'}), 400
+        
+        # Validate permissions
+        valid_permissions = ['dashboard', 'rooms', 'add-room', 'manage-users', 'finance']
+        permissions = [p for p in permissions if p in valid_permissions]
         
         if users_collection is None:
             return jsonify({'success': False, 'error': 'Service unavailable'}), 503
@@ -483,6 +510,7 @@ def create_user():
             'password_hash': hash_password(password),
             'role': role,
             'displayName': displayName,
+            'permissions': permissions if role == 'manager' else [],  # Admins have all permissions
             'created_at': datetime.now(timezone.utc)
         }
         
@@ -495,7 +523,8 @@ def create_user():
                 '_id': str(result.inserted_id),
                 'username': username,
                 'role': role,
-                'displayName': displayName
+                'displayName': displayName,
+                'permissions': permissions if role == 'manager' else ['dashboard', 'rooms', 'add-room', 'manage-users', 'finance']
             }
         }), 201
         
@@ -532,6 +561,74 @@ def delete_user(user_id):
     except Exception as e:
         print(f"Delete user error: {e}")
         return jsonify({'success': False, 'error': 'Failed to delete user'}), 500
+
+@app.route('/backend/api/auth/users/<user_id>', methods=['PUT'])
+@admin_required
+def update_user(user_id):
+    """Update a user's details including permissions (admin only)"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'Request body required'}), 400
+        
+        if users_collection is None:
+            return jsonify({'success': False, 'error': 'Service unavailable'}), 503
+        
+        # Find user by ID
+        try:
+            user = users_collection.find_one({'_id': ObjectId(user_id)})
+            user_id_obj = ObjectId(user_id)
+        except:
+            user = users_collection.find_one({'_id': user_id})
+            user_id_obj = user_id
+        
+        if not user:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+        
+        # Build update document
+        update_data = {'updated_at': datetime.now(timezone.utc)}
+        
+        # Update display name if provided
+        if 'displayName' in data:
+            update_data['displayName'] = data['displayName'].strip()
+        
+        # Update role if provided
+        if 'role' in data:
+            if data['role'] not in ['admin', 'manager']:
+                return jsonify({'success': False, 'error': 'Role must be admin or manager'}), 400
+            update_data['role'] = data['role']
+        
+        # Update permissions if provided
+        if 'permissions' in data:
+            valid_permissions = ['dashboard', 'rooms', 'add-room', 'manage-users', 'finance']
+            permissions = [p for p in data['permissions'] if p in valid_permissions]
+            update_data['permissions'] = permissions
+        
+        # Perform update
+        users_collection.update_one(
+            {'_id': user_id_obj},
+            {'$set': update_data}
+        )
+        
+        # Fetch updated user
+        updated_user = users_collection.find_one({'_id': user_id_obj})
+        
+        return jsonify({
+            'success': True,
+            'message': 'User updated successfully',
+            'user': {
+                '_id': str(updated_user['_id']),
+                'username': updated_user.get('username'),
+                'role': updated_user.get('role'),
+                'displayName': updated_user.get('displayName'),
+                'permissions': updated_user.get('permissions', [])
+            }
+        }), 200
+        
+    except Exception as e:
+        print(f"Update user error: {e}")
+        return jsonify({'success': False, 'error': 'Failed to update user'}), 500
 
 @app.route('/backend/api/auth/users/<user_id>/password', methods=['PUT'])
 @admin_required
@@ -584,6 +681,191 @@ def admin_change_user_password(user_id):
     except Exception as e:
         print(f"Admin change password error: {e}")
         return jsonify({'success': False, 'error': 'Failed to change password'}), 500
+
+# ===== Finance API Endpoints =====
+
+@app.route('/backend/api/finance', methods=['GET'])
+@token_required
+def get_all_transactions():
+    """Get all finance transactions"""
+    try:
+        if finance_collection is None:
+            return jsonify({'success': False, 'error': 'Service unavailable'}), 503
+        
+        transactions = list(finance_collection.find().sort('date', -1))
+        
+        # Convert ObjectId to string
+        for transaction in transactions:
+            transaction['_id'] = str(transaction['_id'])
+        
+        return jsonify({
+            'success': True,
+            'data': transactions,
+            'count': len(transactions)
+        }), 200
+        
+    except Exception as e:
+        print(f"Get transactions error: {e}")
+        return jsonify({'success': False, 'error': 'Failed to get transactions'}), 500
+
+@app.route('/backend/api/finance', methods=['POST'])
+@token_required
+def create_transaction():
+    """Create a new finance transaction"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'Request body required'}), 400
+        
+        trans_type = data.get('type', '')
+        amount = data.get('amount', 0)
+        date = data.get('date', '')
+        description = data.get('description', '').strip()
+        category = data.get('category', '')
+        person_in_charge = data.get('personInCharge', '').strip()
+        
+        if not trans_type or not amount or not date or not person_in_charge or not description:
+            return jsonify({'success': False, 'error': 'Type, amount, date, person in charge, and description are required'}), 400
+        
+        if trans_type not in ['income', 'expense']:
+            return jsonify({'success': False, 'error': 'Type must be income or expense'}), 400
+        
+        try:
+            amount = float(amount)
+            if amount <= 0:
+                return jsonify({'success': False, 'error': 'Amount must be greater than 0'}), 400
+        except ValueError:
+            return jsonify({'success': False, 'error': 'Invalid amount'}), 400
+        
+        if finance_collection is None:
+            return jsonify({'success': False, 'error': 'Service unavailable'}), 503
+        
+        # Create new transaction
+        new_transaction = {
+            'type': trans_type,
+            'amount': amount,
+            'date': date,
+            'description': description,
+            'category': category,
+            'personInCharge': person_in_charge,
+            'created_by': request.current_user.get('username'),
+            'created_at': datetime.now(timezone.utc)
+        }
+        
+        result = finance_collection.insert_one(new_transaction)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Transaction created successfully',
+            'transaction': {
+                '_id': str(result.inserted_id),
+                'type': trans_type,
+                'amount': amount,
+                'date': date,
+                'description': description,
+                'category': category,
+                'personInCharge': person_in_charge
+            }
+        }), 201
+        
+    except Exception as e:
+        print(f"Create transaction error: {e}")
+        return jsonify({'success': False, 'error': 'Failed to create transaction'}), 500
+
+@app.route('/backend/api/finance/<transaction_id>', methods=['PUT'])
+@token_required
+def update_transaction(transaction_id):
+    """Update a finance transaction"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'Request body required'}), 400
+        
+        if finance_collection is None:
+            return jsonify({'success': False, 'error': 'Service unavailable'}), 503
+        
+        # Find transaction by ID
+        try:
+            transaction = finance_collection.find_one({'_id': ObjectId(transaction_id)})
+            transaction_id_obj = ObjectId(transaction_id)
+        except:
+            transaction = finance_collection.find_one({'_id': transaction_id})
+            transaction_id_obj = transaction_id
+        
+        if not transaction:
+            return jsonify({'success': False, 'error': 'Transaction not found'}), 404
+        
+        # Build update document
+        update_data = {'updated_at': datetime.now(timezone.utc)}
+        
+        if 'type' in data:
+            if data['type'] not in ['income', 'expense']:
+                return jsonify({'success': False, 'error': 'Type must be income or expense'}), 400
+            update_data['type'] = data['type']
+        
+        if 'amount' in data:
+            try:
+                amount = float(data['amount'])
+                if amount <= 0:
+                    return jsonify({'success': False, 'error': 'Amount must be greater than 0'}), 400
+                update_data['amount'] = amount
+            except ValueError:
+                return jsonify({'success': False, 'error': 'Invalid amount'}), 400
+        
+        if 'date' in data:
+            update_data['date'] = data['date']
+        
+        if 'description' in data:
+            update_data['description'] = data['description'].strip()
+        
+        if 'category' in data:
+            update_data['category'] = data['category']
+        
+        if 'personInCharge' in data:
+            update_data['personInCharge'] = data['personInCharge'].strip()
+        
+        # Perform update
+        finance_collection.update_one(
+            {'_id': transaction_id_obj},
+            {'$set': update_data}
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Transaction updated successfully'
+        }), 200
+        
+    except Exception as e:
+        print(f"Update transaction error: {e}")
+        return jsonify({'success': False, 'error': 'Failed to update transaction'}), 500
+
+@app.route('/backend/api/finance/<transaction_id>', methods=['DELETE'])
+@token_required
+def delete_transaction(transaction_id):
+    """Delete a finance transaction"""
+    try:
+        if finance_collection is None:
+            return jsonify({'success': False, 'error': 'Service unavailable'}), 503
+        
+        # Find and delete transaction
+        try:
+            result = finance_collection.delete_one({'_id': ObjectId(transaction_id)})
+        except:
+            result = finance_collection.delete_one({'_id': transaction_id})
+        
+        if result.deleted_count == 0:
+            return jsonify({'success': False, 'error': 'Transaction not found'}), 404
+        
+        return jsonify({
+            'success': True,
+            'message': 'Transaction deleted successfully'
+        }), 200
+        
+    except Exception as e:
+        print(f"Delete transaction error: {e}")
+        return jsonify({'success': False, 'error': 'Failed to delete transaction'}), 500
 
 # ===== Root & Info Endpoints =====
 
@@ -1121,9 +1403,6 @@ def reorder_room_images(room_id):
     # Handle CORS preflight
     if request.method == 'OPTIONS':
         response = jsonify({'success': True})
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-        response.headers.add('Access-Control-Allow-Methods', 'PUT, OPTIONS')
         return response, 200
     
     try:

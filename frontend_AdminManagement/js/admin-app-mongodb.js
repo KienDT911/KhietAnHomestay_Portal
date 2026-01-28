@@ -159,6 +159,7 @@ function clearAuthData() {
     sessionStorage.removeItem('adminLoggedIn');
     sessionStorage.removeItem('adminUsername');
     sessionStorage.removeItem('adminRole');
+    sessionStorage.removeItem('adminPermissions');
 }
 
 // Add auth header to fetch requests
@@ -168,6 +169,25 @@ function getAuthHeaders() {
         'Content-Type': 'application/json',
         'Authorization': token ? `Bearer ${token}` : ''
     };
+}
+
+// Get user permissions from session storage
+function getUserPermissions() {
+    try {
+        const permissions = sessionStorage.getItem('adminPermissions');
+        return permissions ? JSON.parse(permissions) : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+// Check if user has specific permission
+function hasPermission(permission) {
+    const role = sessionStorage.getItem('adminRole');
+    if (role === 'admin') return true; // Admins have all permissions
+    
+    const permissions = getUserPermissions();
+    return permissions.includes(permission);
 }
 
 // Check if user is logged in on page load
@@ -187,6 +207,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                     sessionStorage.setItem('adminLoggedIn', 'true');
                     sessionStorage.setItem('adminUsername', data.user.displayName);
                     sessionStorage.setItem('adminRole', data.user.role);
+                    sessionStorage.setItem('adminPermissions', JSON.stringify(data.user.permissions || []));
                     showDashboard();
                     return;
                 }
@@ -234,6 +255,8 @@ async function handleLogin(event) {
             sessionStorage.setItem('adminLoggedIn', 'true');
             sessionStorage.setItem('adminUsername', data.user.displayName);
             sessionStorage.setItem('adminRole', data.user.role);
+            // Store permissions as JSON string
+            sessionStorage.setItem('adminPermissions', JSON.stringify(data.user.permissions || []));
             
             showDashboard();
             errorElement.textContent = '';
@@ -324,24 +347,28 @@ function applyRoleBasedAccess() {
     const sidebarMenu = document.querySelector('.sidebar-menu');
     const menuItems = sidebarMenu.querySelectorAll('li');
     
-    // Menu items: [0] = Dashboard, [1] = Manage Rooms, [2] = Add New Room, [3] = Manage Users
+    // Menu items: [0] = Dashboard, [1] = Manage Rooms, [2] = Add New Room, [3] = Manage Users, [4] = Finance
+    // For admins: show all. For managers: check individual permissions
     if (menuItems[1]) {
-        menuItems[1].style.display = isAdmin ? 'block' : 'none';
+        menuItems[1].style.display = hasPermission('rooms') ? 'block' : 'none';
     }
     if (menuItems[2]) {
-        menuItems[2].style.display = isAdmin ? 'block' : 'none';
+        menuItems[2].style.display = hasPermission('add-room') ? 'block' : 'none';
     }
     if (menuItems[3]) {
-        menuItems[3].style.display = isAdmin ? 'block' : 'none';
+        menuItems[3].style.display = hasPermission('manage-users') ? 'block' : 'none';
+    }
+    if (menuItems[4]) {
+        menuItems[4].style.display = hasPermission('finance') ? 'block' : 'none';
     }
     
     // Also hide the "+ Add New Room" button in Manage Rooms section header
-    const addRoomBtn = document.querySelector('#rooms .section-header .btn-primary');
+    const addRoomBtn = document.querySelector('#rooms .rooms-header .btn-primary');
     if (addRoomBtn) {
-        addRoomBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+        addRoomBtn.style.display = hasPermission('add-room') ? 'inline-flex' : 'none';
     }
     
-    console.log('Role-based access applied. Role:', role, 'Is Admin:', isAdmin);
+    console.log('Role-based access applied. Role:', role, 'Is Admin:', isAdmin, 'Permissions:', getUserPermissions());
 }
 
 // Logout - clears all auth data including token
@@ -603,12 +630,11 @@ function initSidebar() {
 
 // Switch tabs
 function switchTab(tabName) {
-    // Check role-based access for restricted tabs
-    const role = sessionStorage.getItem('adminRole') || 'manager';
-    const restrictedTabs = ['rooms', 'add-room', 'manage-users'];
+    // Check permission-based access for tabs
+    const restrictedTabs = ['rooms', 'add-room', 'manage-users', 'finance'];
     
-    if (role !== 'admin' && restrictedTabs.includes(tabName)) {
-        alert('Access denied. Only administrators can access this section.');
+    if (restrictedTabs.includes(tabName) && !hasPermission(tabName)) {
+        alert('Access denied. You do not have permission to access this section.');
         return;
     }
     
@@ -655,6 +681,8 @@ function switchTab(tabName) {
         resetForm();
     } else if (tabName === 'manage-users') {
         loadUsers();
+    } else if (tabName === 'finance') {
+        loadTransactions();
     }
 }
 
@@ -3415,12 +3443,35 @@ async function loadUsers() {
             usersData = data.data || [];
             renderUsersTable();
         } else {
-            usersList.innerHTML = '<tr><td colspan="5" class="error-text">Failed to load users</td></tr>';
+            usersList.innerHTML = '<tr><td colspan="6" class="error-text">Failed to load users</td></tr>';
         }
     } catch (error) {
         console.error('Error loading users:', error);
-        usersList.innerHTML = '<tr><td colspan="5" class="error-text">Error loading users. Please try again.</td></tr>';
+        usersList.innerHTML = '<tr><td colspan="6" class="error-text">Error loading users. Please try again.</td></tr>';
     }
+}
+
+// Format permissions for display
+function formatPermissions(permissions, role) {
+    if (role === 'admin') {
+        return '<span class="permissions-badge all-access">All Access</span>';
+    }
+    
+    if (!permissions || permissions.length === 0) {
+        return '<span class="permissions-badge no-access">Dashboard Only</span>';
+    }
+    
+    const permissionLabels = {
+        'dashboard': 'Dashboard',
+        'rooms': 'Rooms',
+        'add-room': 'Add Room',
+        'manage-users': 'Users',
+        'finance': 'Finance'
+    };
+    
+    return permissions.map(p => 
+        `<span class="permissions-badge">${permissionLabels[p] || p}</span>`
+    ).join('');
 }
 
 // Render users table
@@ -3429,7 +3480,7 @@ function renderUsersTable() {
     if (!usersList) return;
     
     if (usersData.length === 0) {
-        usersList.innerHTML = '<tr><td colspan="5" class="empty-text">No users found</td></tr>';
+        usersList.innerHTML = '<tr><td colspan="6" class="empty-text">No users found</td></tr>';
         return;
     }
     
@@ -3437,6 +3488,7 @@ function renderUsersTable() {
     
     usersList.innerHTML = usersData.map(user => {
         const isCurrentUser = user.displayName === currentUsername;
+        const permissions = user.permissions || ['dashboard'];
         return `
             <tr class="${isCurrentUser ? 'current-user-row' : ''}">
                 <td>
@@ -3446,6 +3498,9 @@ function renderUsersTable() {
                 <td>${escapeHtml(user.displayName || user.username)}</td>
                 <td>
                     <span class="badge badge-${user.role}">${user.role === 'admin' ? 'Admin' : 'Manager'}</span>
+                </td>
+                <td class="permissions-cell">
+                    ${formatPermissions(permissions, user.role)}
                 </td>
                 <td>
                     <span class="password-hidden">••••••••</span>
@@ -3479,12 +3534,61 @@ function showAddUserForm() {
     document.getElementById('user-password').required = true;
     document.getElementById('user-form-container').style.display = 'block';
     document.getElementById('change-password-container').style.display = 'none';
+    
+    // Reset permissions checkboxes
+    resetPermissionsCheckboxes();
+    togglePermissionsSection();
 }
 
 // Hide add/edit user form
 function hideUserForm() {
     document.getElementById('user-form-container').style.display = 'none';
     document.getElementById('user-form').reset();
+    resetPermissionsCheckboxes();
+}
+
+// Toggle permissions section visibility based on role
+function togglePermissionsSection() {
+    const role = document.getElementById('user-role').value;
+    const permissionsSection = document.getElementById('permissions-section');
+    
+    if (permissionsSection) {
+        if (role === 'admin') {
+            permissionsSection.style.display = 'none';
+        } else {
+            permissionsSection.style.display = 'block';
+        }
+    }
+}
+
+// Reset all permissions checkboxes to default state
+function resetPermissionsCheckboxes() {
+    const checkboxes = document.querySelectorAll('input[name="user-permissions"]');
+    checkboxes.forEach(checkbox => {
+        if (checkbox.value === 'dashboard') {
+            checkbox.checked = true; // Dashboard always checked
+        } else {
+            checkbox.checked = false;
+        }
+    });
+}
+
+// Get selected permissions from checkboxes
+function getSelectedPermissions() {
+    const checkboxes = document.querySelectorAll('input[name="user-permissions"]:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+// Set permissions checkboxes based on user data
+function setPermissionsCheckboxes(permissions) {
+    const checkboxes = document.querySelectorAll('input[name="user-permissions"]');
+    checkboxes.forEach(checkbox => {
+        if (checkbox.value === 'dashboard') {
+            checkbox.checked = true; // Dashboard always checked
+        } else {
+            checkbox.checked = permissions.includes(checkbox.value);
+        }
+    });
 }
 
 // Edit user
@@ -3502,6 +3606,10 @@ function editUser(userId) {
     document.getElementById('user-password').required = false; // Password optional when editing
     document.getElementById('user-form-container').style.display = 'block';
     document.getElementById('change-password-container').style.display = 'none';
+    
+    // Set permissions checkboxes
+    setPermissionsCheckboxes(user.permissions || ['dashboard']);
+    togglePermissionsSection();
 }
 
 // Save user (create or update)
@@ -3513,6 +3621,7 @@ async function saveUser(event) {
     const displayName = document.getElementById('user-display-name').value.trim();
     const role = document.getElementById('user-role').value;
     const password = document.getElementById('user-password').value;
+    const permissions = getSelectedPermissions();
     
     // Validation
     if (!username || !displayName || !role) {
@@ -3537,11 +3646,26 @@ async function saveUser(event) {
     
     try {
         if (userId) {
-            // Update existing user - need to implement this endpoint
-            // For now, we can only change password via separate endpoint
-            alert('User details updated. Use "Change Password" button to update password.');
-            hideUserForm();
-            loadUsers();
+            // Update existing user
+            const response = await fetch(`${AUTH_API_URL}/users/${userId}`, {
+                method: 'PUT',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    displayName,
+                    role,
+                    permissions
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                alert('User updated successfully!');
+                hideUserForm();
+                loadUsers();
+            } else {
+                alert('Failed to update user: ' + (data.error || 'Unknown error'));
+            }
         } else {
             // Create new user
             const response = await fetch(`${AUTH_API_URL}/users`, {
@@ -3551,7 +3675,8 @@ async function saveUser(event) {
                     username,
                     displayName,
                     role,
-                    password
+                    password,
+                    permissions
                 })
             });
             
@@ -3669,6 +3794,353 @@ function togglePasswordVisibility(inputId) {
         input.type = 'text';
     } else {
         input.type = 'password';
+    }
+}
+
+// ===== Finance Management System =====
+
+// Finance API URL
+const FINANCE_API_URL = (function() {
+    const host = window.location.hostname;
+    if (host === '127.0.0.1' || host === 'localhost') {
+        return `http://${host}:5000/backend/api/finance`;
+    }
+    return 'https://khietanportal.vercel.app/backend/api/finance';
+})();
+
+// Format currency with commas for thousands separator (no decimals)
+function formatCurrency(amount) {
+    return parseFloat(amount).toLocaleString('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    });
+}
+
+// Store transactions data
+let transactionsData = [];
+
+// Load all transactions from API
+async function loadTransactions() {
+    const transactionsList = document.getElementById('transactions-list');
+    if (!transactionsList) return;
+    
+    transactionsList.innerHTML = '<tr><td colspan="5" class="loading-text">Loading transactions...</td></tr>';
+    
+    try {
+        const response = await fetch(FINANCE_API_URL, {
+            method: 'GET',
+            headers: getAuthHeaders()
+        });
+        
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                transactionsList.innerHTML = '<tr><td colspan="5" class="error-text">Access denied.</td></tr>';
+                return;
+            }
+            throw new Error('Failed to load transactions');
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            transactionsData = data.data || [];
+            renderTransactionsTable();
+            updateFinanceSummary();
+        } else {
+            transactionsList.innerHTML = '<tr><td colspan="6" class="error-text">Failed to load transactions</td></tr>';
+        }
+    } catch (error) {
+        console.error('Error loading transactions:', error);
+        transactionsList.innerHTML = '<tr><td colspan="6" class="error-text">Error loading transactions. Please try again.</td></tr>';
+    }
+}
+
+// Render transactions table
+function renderTransactionsTable() {
+    const transactionsList = document.getElementById('transactions-list');
+    if (!transactionsList) return;
+    
+    // Apply filters
+    let filteredData = filterTransactionsData();
+    
+    if (filteredData.length === 0) {
+        transactionsList.innerHTML = '<tr><td colspan="6" class="empty-text">No transactions found</td></tr>';
+        return;
+    }
+    
+    // Sort by date descending (newest first)
+    filteredData.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    transactionsList.innerHTML = filteredData.map(transaction => {
+        const date = new Date(transaction.date).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+        const isIncome = transaction.type === 'income';
+        const amountClass = isIncome ? 'amount-income' : 'amount-expense';
+        const amountPrefix = isIncome ? '+' : '-';
+        const typeLabel = isIncome ? 'Income' : 'Expense';
+        const typeBadgeClass = isIncome ? 'badge-income' : 'badge-expense';
+        
+        return `
+            <tr>
+                <td>${date}</td>
+                <td><span class="badge ${typeBadgeClass}">${typeLabel}</span></td>
+                <td class="${amountClass}">${amountPrefix}$${formatCurrency(transaction.amount)}</td>
+                <td>${escapeHtml(transaction.personInCharge || '-')}</td>
+                <td class="description-cell">
+                    <div class="description-content">
+                        ${transaction.category ? `<span class="category-tag">${formatCategory(transaction.category)}</span>` : ''}
+                        <span>${escapeHtml(transaction.description)}</span>
+                    </div>
+                </td>
+                <td class="actions-cell">
+                    <button class="btn-small btn-outline" onclick="editTransaction('${transaction._id}')">Edit</button>
+                    <button class="btn-small btn-danger-outline" onclick="deleteTransaction('${transaction._id}')">Delete</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Format category for display
+function formatCategory(category) {
+    const categoryLabels = {
+        'room-booking': 'Room Booking',
+        'utilities': 'Utilities',
+        'maintenance': 'Maintenance',
+        'supplies': 'Supplies',
+        'salary': 'Salary',
+        'marketing': 'Marketing',
+        'other': 'Other'
+    };
+    return categoryLabels[category] || category;
+}
+
+// Filter transactions based on filter inputs
+function filterTransactionsData() {
+    const typeFilter = document.getElementById('finance-filter-type')?.value || '';
+    const dateFromFilter = document.getElementById('finance-filter-date-from')?.value || '';
+    const dateToFilter = document.getElementById('finance-filter-date-to')?.value || '';
+    
+    return transactionsData.filter(t => {
+        // Type filter
+        if (typeFilter && t.type !== typeFilter) return false;
+        
+        // Date range filter
+        if (dateFromFilter) {
+            const transDate = new Date(t.date);
+            const fromDate = new Date(dateFromFilter);
+            if (transDate < fromDate) return false;
+        }
+        
+        if (dateToFilter) {
+            const transDate = new Date(t.date);
+            const toDate = new Date(dateToFilter);
+            toDate.setHours(23, 59, 59, 999); // End of day
+            if (transDate > toDate) return false;
+        }
+        
+        return true;
+    });
+}
+
+// Filter transactions (called on filter change)
+function filterTransactions() {
+    renderTransactionsTable();
+    updateFilteredSummary();
+}
+
+// Reset finance filters
+function resetFinanceFilters() {
+    document.getElementById('finance-filter-type').value = '';
+    document.getElementById('finance-filter-date-from').value = '';
+    document.getElementById('finance-filter-date-to').value = '';
+    renderTransactionsTable();
+    updateFinanceSummary();
+}
+
+// Update finance summary cards
+function updateFinanceSummary() {
+    const totalIncome = transactionsData
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    
+    const totalExpenses = transactionsData
+        .filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    
+    const netBalance = totalIncome - totalExpenses;
+    
+    document.getElementById('total-income').textContent = `$${formatCurrency(totalIncome)}`;
+    document.getElementById('total-expenses').textContent = `$${formatCurrency(totalExpenses)}`;
+    
+    const balanceEl = document.getElementById('net-balance');
+    balanceEl.textContent = `$${formatCurrency(netBalance)}`;
+    balanceEl.className = 'finance-card-value ' + (netBalance >= 0 ? 'positive' : 'negative');
+}
+
+// Update summary based on filtered data
+function updateFilteredSummary() {
+    const filteredData = filterTransactionsData();
+    
+    const totalIncome = filteredData
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    
+    const totalExpenses = filteredData
+        .filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    
+    const netBalance = totalIncome - totalExpenses;
+    
+    document.getElementById('total-income').textContent = `$${formatCurrency(totalIncome)}`;
+    document.getElementById('total-expenses').textContent = `$${formatCurrency(totalExpenses)}`;
+    
+    const balanceEl = document.getElementById('net-balance');
+    balanceEl.textContent = `$${formatCurrency(netBalance)}`;
+    balanceEl.className = 'finance-card-value ' + (netBalance >= 0 ? 'positive' : 'negative');
+}
+
+// Show add transaction form
+function showAddTransactionForm() {
+    document.getElementById('transaction-form-title').textContent = 'Add New Transaction';
+    document.getElementById('transaction-form').reset();
+    document.getElementById('edit-transaction-id').value = '';
+    
+    // Set default date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('transaction-date').value = today;
+    
+    const formContainer = document.getElementById('transaction-form-container');
+    formContainer.style.display = 'block';
+    
+    // Scroll to the form smoothly
+    setTimeout(() => {
+        formContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+}
+
+// Hide transaction form
+function hideTransactionForm() {
+    document.getElementById('transaction-form-container').style.display = 'none';
+    document.getElementById('transaction-form').reset();
+}
+
+// Edit transaction
+function editTransaction(transactionId) {
+    const transaction = transactionsData.find(t => t._id === transactionId);
+    if (!transaction) return;
+    
+    document.getElementById('transaction-form-title').textContent = 'Edit Transaction';
+    document.getElementById('edit-transaction-id').value = transactionId;
+    document.getElementById('transaction-type').value = transaction.type;
+    document.getElementById('transaction-amount').value = transaction.amount;
+    document.getElementById('transaction-date').value = transaction.date.split('T')[0];
+    document.getElementById('transaction-category').value = transaction.category || '';
+    document.getElementById('transaction-person').value = transaction.personInCharge || '';
+    document.getElementById('transaction-description').value = transaction.description;
+    
+    document.getElementById('transaction-form-container').style.display = 'block';
+}
+
+// Save transaction (create or update)
+async function saveTransaction(event) {
+    event.preventDefault();
+    
+    const transactionId = document.getElementById('edit-transaction-id').value;
+    const type = document.getElementById('transaction-type').value;
+    const amount = parseFloat(document.getElementById('transaction-amount').value);
+    const date = document.getElementById('transaction-date').value;
+    const category = document.getElementById('transaction-category').value;
+    const personInCharge = document.getElementById('transaction-person').value.trim();
+    const description = document.getElementById('transaction-description').value.trim();
+    
+    // Validation
+    if (!type || !amount || !date || !personInCharge || !description) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    if (amount <= 0) {
+        alert('Amount must be greater than 0');
+        return;
+    }
+    
+    const submitBtn = document.querySelector('#transaction-form button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving...';
+    
+    try {
+        const transactionData = {
+            type,
+            amount,
+            date,
+            category,
+            personInCharge,
+            description
+        };
+        
+        let response;
+        if (transactionId) {
+            // Update existing transaction
+            response = await fetch(`${FINANCE_API_URL}/${transactionId}`, {
+                method: 'PUT',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(transactionData)
+            });
+        } else {
+            // Create new transaction
+            response = await fetch(FINANCE_API_URL, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(transactionData)
+            });
+        }
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            alert(transactionId ? 'Transaction updated successfully!' : 'Transaction added successfully!');
+            hideTransactionForm();
+            loadTransactions();
+        } else {
+            alert('Failed to save transaction: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error saving transaction:', error);
+        alert('Error saving transaction. Please try again.');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    }
+}
+
+// Delete transaction
+async function deleteTransaction(transactionId) {
+    if (!confirm('Are you sure you want to delete this transaction?\\n\\nThis action cannot be undone.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${FINANCE_API_URL}/${transactionId}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            alert('Transaction deleted successfully!');
+            loadTransactions();
+        } else {
+            alert('Failed to delete transaction: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error deleting transaction:', error);
+        alert('Error deleting transaction. Please try again.');
     }
 }
 

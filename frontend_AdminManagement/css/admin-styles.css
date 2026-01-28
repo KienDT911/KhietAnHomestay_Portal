@@ -4029,3 +4029,430 @@ html, body {
 #manage-users .section-header h2 {
     margin: 0;
 }
+
+/* ===== Permissions UI Styles ===== */
+
+/* Permissions Section in User Form */
+.permissions-section {
+    margin-top: 15px;
+    padding: 15px;
+    background: rgba(123, 155, 126, 0.05);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.permissions-section > label {
+    display: block;
+    font-weight: 600;
+    color: var(--dark-green);
+    margin-bottom: 12px;
+}
+
+.permissions-section > label small {
+    font-weight: 400;
+    color: var(--text-light);
+}
+
+.permissions-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+@media (max-width: 600px) {
+    .permissions-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Custom Checkbox Style */
+.permission-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 15px;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.permission-checkbox:hover {
+    border-color: var(--sage-green);
+    background: rgba(123, 155, 126, 0.05);
+}
+
+.permission-checkbox input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.permission-checkbox .checkbox-custom {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-color);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.permission-checkbox input[type="checkbox"]:checked + .checkbox-custom {
+    background: var(--sage-green);
+    border-color: var(--sage-green);
+}
+
+.permission-checkbox input[type="checkbox"]:checked + .checkbox-custom::after {
+    content: '✓';
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.permission-checkbox input[type="checkbox"]:disabled + .checkbox-custom {
+    background: var(--light-sage);
+    border-color: var(--light-sage);
+}
+
+.permission-checkbox input[type="checkbox"]:disabled + .checkbox-custom::after {
+    content: '✓';
+    color: var(--dark-green);
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.permission-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    color: var(--text-dark);
+}
+
+.permission-icon {
+    color: var(--sage-green);
+}
+
+.permission-hint {
+    font-size: 11px;
+    color: var(--text-light);
+    margin-left: auto;
+}
+
+/* Permissions Cell in Users Table */
+.permissions-cell {
+    max-width: 200px;
+}
+
+.permissions-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    margin: 2px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 500;
+    background: rgba(123, 155, 126, 0.15);
+    color: var(--dark-green);
+}
+
+.permissions-badge.all-access {
+    background: rgba(123, 155, 126, 0.3);
+    color: var(--dark-green);
+    font-weight: 600;
+}
+
+.permissions-badge.no-access {
+    background: rgba(139, 134, 128, 0.15);
+    color: var(--warm-grey);
+}
+
+/* Users Table - Responsive */
+.users-table-container {
+    overflow-x: auto;
+}
+
+.users-table th,
+.users-table td {
+    white-space: nowrap;
+}
+
+.users-table .permissions-cell {
+    white-space: normal;
+    min-width: 150px;
+}
+
+/* ===== Finance Tab Styles ===== */
+
+/* Finance Summary Cards */
+.finance-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    margin-bottom: 25px;
+}
+
+.finance-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    border-left: 4px solid var(--sage-green);
+}
+
+.finance-card.income {
+    border-left-color: #4caf50;
+}
+
+.finance-card.expense {
+    border-left-color: #f44336;
+}
+
+.finance-card.balance {
+    border-left-color: var(--sage-green);
+}
+
+.finance-card-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.finance-card.income .finance-card-icon {
+    background: rgba(76, 175, 80, 0.15);
+    color: #4caf50;
+}
+
+.finance-card.expense .finance-card-icon {
+    background: rgba(244, 67, 54, 0.15);
+    color: #f44336;
+}
+
+.finance-card.balance .finance-card-icon {
+    background: rgba(123, 155, 126, 0.15);
+    color: var(--sage-green);
+}
+
+.finance-card-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.finance-card-label {
+    font-size: 13px;
+    color: var(--text-light);
+    margin-bottom: 4px;
+}
+
+.finance-card-value {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+.finance-card-value.positive {
+    color: #4caf50;
+}
+
+.finance-card-value.negative {
+    color: #f44336;
+}
+
+/* Finance Filters */
+.finance-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: flex-end;
+    padding: 15px 20px;
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+
+.finance-filters .filter-group {
+    flex: 1;
+    min-width: 150px;
+}
+
+.finance-filters .filter-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-light);
+    margin-bottom: 5px;
+}
+
+.finance-filters .filter-group select,
+.finance-filters .filter-group input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+/* Transactions Table */
+.transactions-table-container {
+    background: white;
+    border-radius: 8px;
+    overflow-x: auto;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+}
+
+.transactions-table {
+    width: 100%;
+    min-width: 700px; /* Minimum width to ensure table doesn't shrink on mobile */
+    border-collapse: collapse;
+}
+
+.transactions-table th,
+.transactions-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.transactions-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-dark);
+}
+
+.transactions-table tbody tr:hover {
+    background: rgba(123, 155, 126, 0.05);
+}
+
+/* Transaction Type Badges */
+.badge-income {
+    background: rgba(76, 175, 80, 0.15);
+    color: #2e7d32;
+}
+
+.badge-expense {
+    background: rgba(244, 67, 54, 0.15);
+    color: #c62828;
+}
+
+/* Amount styling */
+.amount-income {
+    color: #2e7d32;
+    font-weight: 600;
+}
+
+.amount-expense {
+    color: #c62828;
+    font-weight: 600;
+}
+
+/* Description cell */
+.description-cell {
+    max-width: 300px;
+}
+
+.description-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.category-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    background: rgba(184, 146, 106, 0.15);
+    color: var(--warm-brown);
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+    width: fit-content;
+}
+
+/* Finance section header */
+#finance .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+#finance .section-header h2 {
+    margin: 0;
+    color: var(--dark-green);
+}
+
+#finance .section-header .btn-primary {
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Transaction form container reuses user-form-container styles */
+#transaction-form-container {
+    margin-top: 20px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .finance-summary {
+        grid-template-columns: 1fr;
+    }
+    
+    .finance-filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .finance-filters .filter-group {
+        min-width: 100%;
+    }
+    
+    .finance-card-value {
+        font-size: 20px;
+    }
+    
+    .description-cell {
+        max-width: 200px;
+    }
+    
+    /* Horizontal scroll indicator for table on mobile */
+    .transactions-table-container {
+        position: relative;
+    }
+    
+    .transactions-table-container::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 20px;
+        background: linear-gradient(to right, transparent, rgba(255,255,255,0.8));
+        pointer-events: none;
+        opacity: 1;
+        transition: opacity 0.3s;
+    }
+    
+    .transactions-table th,
+    .transactions-table td {
+        white-space: nowrap;
+    }
+    
+    .transactions-table .description-cell {
+        white-space: normal;
+        min-width: 150px;
+    }
+}

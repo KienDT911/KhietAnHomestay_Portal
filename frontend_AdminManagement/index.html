@@ -92,6 +92,14 @@
                             <span class="menu-text">Manage Users</span>
                         </a>
                     </li>
+                    <li>
+                        <a href="#" class="menu-item" onclick="switchTab('finance')" title="Finance">
+                            <svg class="menu-icon" viewBox="0 0 24 24" width="20" height="20">
+                                <path fill="currentColor" d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
+                            </svg>
+                            <span class="menu-text">Finance</span>
+                        </a>
+                    </li>
                 </ul>
                 <button class="sidebar-toggle" onclick="toggleSidebar()">
                     <svg viewBox="0 0 24 24" width="20" height="20">
@@ -371,6 +379,7 @@
                                     <th>Username</th>
                                     <th>Display Name</th>
                                     <th>Role</th>
+                                    <th>Permissions</th>
                                     <th>Password</th>
                                     <th>Actions</th>
                                 </tr>
@@ -404,7 +413,7 @@
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="user-role">Role *</label>
-                                    <select id="user-role" required>
+                                    <select id="user-role" required onchange="togglePermissionsSection()">
                                         <option value="manager">Manager</option>
                                         <option value="admin">Admin</option>
                                     </select>
@@ -415,6 +424,64 @@
                                         <input type="password" id="user-password" required placeholder="Enter password" minlength="8">
                                         <button type="button" class="btn-toggle-password" onclick="togglePasswordVisibility('user-password')">👁</button>
                                     </div>
+                                </div>
+                            </div>
+
+                            <!-- Permissions Section (for managers only) -->
+                            <div class="form-group permissions-section" id="permissions-section">
+                                <label>Tab Permissions <small>(select which tabs this manager can access)</small></label>
+                                <div class="permissions-grid">
+                                    <label class="permission-checkbox">
+                                        <input type="checkbox" name="user-permissions" value="dashboard" checked disabled>
+                                        <span class="checkbox-custom"></span>
+                                        <span class="permission-label">
+                                            <svg class="permission-icon" viewBox="0 0 24 24" width="16" height="16">
+                                                <path fill="currentColor" d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
+                                            </svg>
+                                            Dashboard
+                                        </span>
+                                        <span class="permission-hint">(always enabled)</span>
+                                    </label>
+                                    <label class="permission-checkbox">
+                                        <input type="checkbox" name="user-permissions" value="rooms">
+                                        <span class="checkbox-custom"></span>
+                                        <span class="permission-label">
+                                            <svg class="permission-icon" viewBox="0 0 24 24" width="16" height="16">
+                                                <path fill="currentColor" d="M7 13c1.66 0 3-1.34 3-3S8.66 7 7 7s-3 1.34-3 3 1.34 3 3 3zm12-6h-8v7H3V5H1v15h2v-3h18v3h2v-9c0-2.21-1.79-4-4-4z"/>
+                                            </svg>
+                                            Manage Rooms
+                                        </span>
+                                    </label>
+                                    <label class="permission-checkbox">
+                                        <input type="checkbox" name="user-permissions" value="add-room">
+                                        <span class="checkbox-custom"></span>
+                                        <span class="permission-label">
+                                            <svg class="permission-icon" viewBox="0 0 24 24" width="16" height="16">
+                                                <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                                            </svg>
+                                            Add New Room
+                                        </span>
+                                    </label>
+                                    <label class="permission-checkbox">
+                                        <input type="checkbox" name="user-permissions" value="manage-users">
+                                        <span class="checkbox-custom"></span>
+                                        <span class="permission-label">
+                                            <svg class="permission-icon" viewBox="0 0 24 24" width="16" height="16">
+                                                <path fill="currentColor" d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                                            </svg>
+                                            Manage Users
+                                        </span>
+                                    </label>
+                                    <label class="permission-checkbox">
+                                        <input type="checkbox" name="user-permissions" value="finance">
+                                        <span class="checkbox-custom"></span>
+                                        <span class="permission-label">
+                                            <svg class="permission-icon" viewBox="0 0 24 24" width="16" height="16">
+                                                <path fill="currentColor" d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
+                                            </svg>
+                                            Finance
+                                        </span>
+                                    </label>
                                 </div>
                             </div>
 
@@ -453,6 +520,156 @@
                             <div class="form-actions">
                                 <button type="submit" class="btn-primary">Change Password</button>
                                 <button type="button" class="btn-secondary" onclick="hideChangePasswordForm()">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+
+                <!-- Finance Tab -->
+                <section id="finance" class="tab-content">
+                    <div class="section-header">
+                        <h2>Finance Management</h2>
+                        <button class="btn-primary" onclick="showAddTransactionForm()">
+                            <svg viewBox="0 0 24 24" width="16" height="16" style="margin-right: 6px;">
+                                <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                            </svg>
+                            Add Transaction
+                        </button>
+                    </div>
+
+                    <!-- Finance Summary Cards -->
+                    <div class="finance-summary">
+                        <div class="finance-card income">
+                            <div class="finance-card-icon">
+                                <svg viewBox="0 0 24 24" width="24" height="24">
+                                    <path fill="currentColor" d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
+                                </svg>
+                            </div>
+                            <div class="finance-card-content">
+                                <span class="finance-card-label">Total Income</span>
+                                <span class="finance-card-value" id="total-income">$0.00</span>
+                            </div>
+                        </div>
+                        <div class="finance-card expense">
+                            <div class="finance-card-icon">
+                                <svg viewBox="0 0 24 24" width="24" height="24">
+                                    <path fill="currentColor" d="M16 18l2.29-2.29-4.88-4.88-4 4L2 7.41 3.41 6l6 6 4-4 6.3 6.29L22 12v6z"/>
+                                </svg>
+                            </div>
+                            <div class="finance-card-content">
+                                <span class="finance-card-label">Total Expenses</span>
+                                <span class="finance-card-value" id="total-expenses">$0.00</span>
+                            </div>
+                        </div>
+                        <div class="finance-card balance">
+                            <div class="finance-card-icon">
+                                <svg viewBox="0 0 24 24" width="24" height="24">
+                                    <path fill="currentColor" d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
+                                </svg>
+                            </div>
+                            <div class="finance-card-content">
+                                <span class="finance-card-label">Net Balance</span>
+                                <span class="finance-card-value" id="net-balance">$0.00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Finance Filters -->
+                    <div class="finance-filters">
+                        <div class="filter-group">
+                            <label for="finance-filter-type">Type</label>
+                            <select id="finance-filter-type" onchange="filterTransactions()">
+                                <option value="">All Types</option>
+                                <option value="income">Income</option>
+                                <option value="expense">Expense</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="finance-filter-date-from">From Date</label>
+                            <input type="date" id="finance-filter-date-from" onchange="filterTransactions()">
+                        </div>
+                        <div class="filter-group">
+                            <label for="finance-filter-date-to">To Date</label>
+                            <input type="date" id="finance-filter-date-to" onchange="filterTransactions()">
+                        </div>
+                        <button class="btn-secondary btn-small" onclick="resetFinanceFilters()">Reset</button>
+                    </div>
+
+                    <!-- Transactions Table -->
+                    <div class="transactions-table-container">
+                        <table class="rooms-table transactions-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                    <th>Amount</th>
+                                    <th>PIC</th>
+                                    <th>Purpose / Description</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transactions-list">
+                                <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Add/Edit Transaction Form -->
+                    <div id="transaction-form-container" class="user-form-container" style="display: none;">
+                        <div class="form-header">
+                            <h3 id="transaction-form-title">Add New Transaction</h3>
+                            <button type="button" class="btn-close" onclick="hideTransactionForm()">×</button>
+                        </div>
+                        <form id="transaction-form" onsubmit="saveTransaction(event)">
+                            <input type="hidden" id="edit-transaction-id">
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="transaction-type">Type *</label>
+                                    <select id="transaction-type" required>
+                                        <option value="income">Income (Received)</option>
+                                        <option value="expense">Expense (Spent)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="transaction-amount">Amount (VND) *</label>
+                                    <input type="number" id="transaction-amount" required placeholder="0.00" step="0.01" min="0.01">
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="transaction-date">Date *</label>
+                                    <input type="date" id="transaction-date" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="transaction-category">Category</label>
+                                    <select id="transaction-category">
+                                        <option value="">Select Category</option>
+                                        <option value="room-booking">Room Booking</option>
+                                        <option value="utilities">Utilities</option>
+                                        <option value="maintenance">Maintenance</option>
+                                        <option value="supplies">Supplies</option>
+                                        <option value="salary">Salary</option>
+                                        <option value="marketing">Marketing</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="transaction-person">PIC (Person In Charge) *</label>
+                                <input type="text" id="transaction-person" required placeholder="Enter name of person responsible...">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="transaction-description">Purpose / Description *</label>
+                                <textarea id="transaction-description" required placeholder="Describe the purpose of this transaction..." rows="3"></textarea>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" class="btn-primary">Save Transaction</button>
+                                <button type="button" class="btn-secondary" onclick="hideTransactionForm()">Cancel</button>
                             </div>
                         </form>
                     </div>
