@@ -422,8 +422,8 @@ html, body {
     border-left: none;
 }
 
-/* Tooltip for collapsed sidebar */
-.admin-sidebar.collapsed .menu-item:hover::after {
+/* Tooltip for collapsed sidebar - only show when title has content */
+.admin-sidebar.collapsed .menu-item[title]:not([title=""]):hover::after {
     content: attr(title);
     position: absolute;
     left: 100%;
@@ -440,7 +440,7 @@ html, body {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-.admin-sidebar.collapsed .menu-item:hover::before {
+.admin-sidebar.collapsed .menu-item[title]:not([title=""]):hover::before {
     content: '';
     position: absolute;
     left: 100%;
