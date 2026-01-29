@@ -1724,6 +1724,8 @@ function buildDateToIntervalMap(intervals, year, month) {
     const dateToInfo = new Map();
     const firstOfMonth = new Date(year, month, 1);
     const lastOfMonth = new Date(year, month + 1, 0);
+    // Set lastOfMonth to end of day to handle timezone issues when comparing dates
+    lastOfMonth.setHours(23, 59, 59, 999);
     const startDayOfWeek = firstOfMonth.getDay(); // 0 = Sunday
     
     intervals.forEach(interval => {
@@ -1735,7 +1737,9 @@ function buildDateToIntervalMap(intervals, year, month) {
         let daysInInterval = [];
         
         while (current < checkOut) {
-            if (current >= firstOfMonth && current <= lastOfMonth) {
+            // Compare only the date part to avoid timezone issues
+            const currentDateOnly = new Date(current.getFullYear(), current.getMonth(), current.getDate());
+            if (currentDateOnly >= firstOfMonth && current <= lastOfMonth) {
                 const dateStr = formatDateString(current);
                 const dayOfMonth = current.getDate();
                 // Calculate which grid row this day is in
