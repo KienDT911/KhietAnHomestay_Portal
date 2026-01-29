@@ -2158,6 +2158,7 @@ html, body {
     gap: 20px;
     align-items: flex-start;
     overflow: visible;
+    position: relative;
 }
 
 .room-info-panel {
@@ -2165,11 +2166,15 @@ html, body {
     max-width: 180px;
     padding-right: 20px;
     border-right: 1px solid rgba(212, 184, 150, 0.4);
+    position: relative;
 }
 
-/* Desktop: Room header row (ID + Name) - display as block for vertical layout */
+/* Desktop: Room header row (ID + Name + Settings) */
 .room-info-panel .room-header-row {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
 /* Desktop: Room details row (Price + Guests + Image) - display as block for vertical layout */
@@ -2345,6 +2350,120 @@ html, body {
 .btn-save-promotion:disabled {
     background: #ccc;
     cursor: not-allowed;
+}
+
+/* Room Settings Button (3 vertical dots) */
+.room-settings-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    color: var(--text-light);
+    transition: all 0.2s ease;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.room-settings-btn:hover {
+    background: rgba(123, 155, 126, 0.15);
+    color: var(--sage-green);
+}
+
+/* Room Settings Dropdown - Aligned to middle left of calendar row */
+.room-settings-dropdown {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 20px;
+    transform: translateY(-50%);
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(212, 184, 150, 0.4);
+    z-index: 1000;
+    padding: 12px;
+    width: 200px;
+    max-width: 90%;
+}
+
+/* Mobile: Use fixed positioning for better viewport centering */
+@media (max-width: 767px) {
+    .room-settings-dropdown {
+        position: fixed;
+        width: 90%;
+        max-width: 320px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+        z-index: 1001;
+    }
+}
+
+.room-settings-dropdown.active {
+    display: block;
+}
+
+.settings-dropdown-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(212, 184, 150, 0.3);
+}
+
+.settings-dropdown-header span {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--dark-green);
+}
+
+.settings-close-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-light);
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.settings-close-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--text-dark);
+}
+
+/* Styles for sections inside dropdown */
+.room-settings-dropdown .room-promotion-section {
+    margin: 0;
+    padding: 0;
+    border: none;
+}
+
+.room-settings-dropdown .room-ical-section {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed rgba(212, 184, 150, 0.4);
+}
+
+.room-settings-dropdown .ical-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-dark);
+    margin-bottom: 6px;
+}
+
+.room-info-panel {
+    position: relative;
+}
+
+.room-header-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .calendar-panel {

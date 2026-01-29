@@ -18,6 +18,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Setup drag and drop for image upload areas
     setupImageDragDrop('room-image-preview', 'room-image-file');
     setupImageDragDrop('edit-room-image-preview', 'edit-room-image-file');
+    
+    // Close room settings dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.room-settings-dropdown') && !e.target.closest('.room-settings-btn')) {
+            document.querySelectorAll('.room-settings-dropdown.active').forEach(dd => {
+                dd.classList.remove('active');
+            });
+        }
+    });
 });
 
 // Setup drag and drop for image preview areas
@@ -1033,6 +1042,15 @@ function createRoomCalendarRow(room, checkinDate, checkoutDate) {
         <div class="room-header-row">
             <span class="room-number">#${roomId}</span>
             <h4>${room.name}</h4>
+            ${isAdmin ? `
+            <button class="room-settings-btn" title="Room Settings">
+                <svg viewBox="0 0 24 24" width="18" height="18">
+                    <circle cx="12" cy="5" r="2" fill="currentColor"/>
+                    <circle cx="12" cy="12" r="2" fill="currentColor"/>
+                    <circle cx="12" cy="19" r="2" fill="currentColor"/>
+                </svg>
+            </button>
+            ` : ''}
         </div>
         <div class="room-details-row">
             <div class="room-details">
@@ -1041,112 +1059,150 @@ function createRoomCalendarRow(room, checkinDate, checkoutDate) {
             </div>
             <div class="room-image-placeholder"></div>
         </div>
-        ${isAdmin ? `
-        <div class="room-promotion-section" data-room-id="${roomId}">
-            <div class="promotion-toggle-row">
-                <label class="promotion-toggle">
-                    <input type="checkbox" class="promotion-checkbox" ${hasPromotion ? 'checked' : ''}>
-                    <span class="toggle-slider"></span>
-                </label>
-                <span class="promotion-label">Promotion</span>
-            </div>
-            <div class="promotion-price-input" style="display: ${hasPromotion ? 'flex' : 'none'};">
-                <span class="currency-symbol">$</span>
-                <input type="number" class="discount-price-input" 
-                    placeholder="Discount price" 
-                    value="${discountPrice}"
-                    min="0" step="0.01"
-                    title="Enter discounted price">
-                <button type="button" class="btn-save-promotion" title="Save promotion">💾</button>
-            </div>
-        </div>
-        ` : ''}
-        ${isAdmin ? `
-        <div class="room-ical-section" data-room-id="${roomId}">
-            <div class="ical-input-row">
-                <input type="url" class="ical-url-input" 
-                    placeholder="Airbnb iCal URL" 
-                    value="${icalUrl}"
-                    title="Paste Airbnb iCal URL here">
-                <button type="button" class="btn-ical-save" title="Save URL">💾</button>
-                <button type="button" class="btn-ical-sync" title="Sync bookings" ${!icalUrl ? 'disabled' : ''}>🔄</button>
-            </div>
-            ${lastSync ? `<small class="ical-last-sync">Last sync: ${lastSync}</small>` : ''}
-        </div>
-        ` : ''}
     `;
     infoPanel.style.cursor = 'pointer';
     
-    // Click handler for the main panel (excluding iCal section)
+    // Create settings dropdown element (admin only) - appended to row for centering
+    let settingsDropdown = null;
+    if (isAdmin) {
+        settingsDropdown = document.createElement('div');
+        settingsDropdown.className = 'room-settings-dropdown';
+        settingsDropdown.dataset.roomId = roomId;
+        settingsDropdown.innerHTML = `
+            <div class="settings-dropdown-header">
+                <span>Room Settings</span>
+                <button class="settings-close-btn">✕</button>
+            </div>
+            <div class="room-promotion-section">
+                <div class="promotion-toggle-row">
+                    <label class="promotion-toggle">
+                        <input type="checkbox" class="promotion-checkbox" ${hasPromotion ? 'checked' : ''}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="promotion-label">Promotion</span>
+                </div>
+                <div class="promotion-price-input" style="display: ${hasPromotion ? 'flex' : 'none'};">
+                    <span class="currency-symbol">$</span>
+                    <input type="number" class="discount-price-input" 
+                        placeholder="Discount price" 
+                        value="${discountPrice}"
+                        min="0" step="0.01"
+                        title="Enter discounted price">
+                    <button type="button" class="btn-save-promotion" title="Save promotion">💾</button>
+                </div>
+            </div>
+            <div class="room-ical-section">
+                <label class="ical-label">Airbnb iCal Sync</label>
+                <div class="ical-input-row">
+                    <input type="url" class="ical-url-input" 
+                        placeholder="Airbnb iCal URL" 
+                        value="${icalUrl}"
+                        title="Paste Airbnb iCal URL here">
+                    <button type="button" class="btn-ical-save" title="Save URL">💾</button>
+                    <button type="button" class="btn-ical-sync" title="Sync bookings" ${!icalUrl ? 'disabled' : ''}>🔄</button>
+                </div>
+                ${lastSync ? `<small class="ical-last-sync">Last sync: ${lastSync}</small>` : ''}
+            </div>
+        `;
+    }
+    
+    // Click handler for the main panel (excluding settings dropdown)
     infoPanel.addEventListener('click', (e) => {
-        // Don't trigger edit if clicking on iCal section or promotion section
-        if (e.target.closest('.room-ical-section')) return;
-        if (e.target.closest('.room-promotion-section')) return;
+        // Don't trigger edit if clicking on settings button or dropdown
+        if (e.target.closest('.room-settings-btn')) return;
+        if (e.target.closest('.room-settings-dropdown')) return;
         openQuickEditModal(roomId);
     });
     
-    // Setup iCal button handlers (admin only)
-    const icalSection = infoPanel.querySelector('.room-ical-section');
-    if (icalSection) {
-        const icalInput = icalSection.querySelector('.ical-url-input');
-        const saveBtn = icalSection.querySelector('.btn-ical-save');
-        const syncBtn = icalSection.querySelector('.btn-ical-sync');
-        
-        // Prevent click propagation on iCal elements
-        icalInput.addEventListener('click', (e) => e.stopPropagation());
-        saveBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            saveRoomIcalUrl(roomId, icalInput.value.trim(), saveBtn, syncBtn);
-        });
-        syncBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            syncRoomIcalFromCard(roomId, syncBtn);
-        });
-    }
+    // Setup settings button and dropdown (admin only)
+    const settingsBtn = infoPanel.querySelector('.room-settings-btn');
     
-    // Setup promotion handlers (admin only)
-    const promotionSection = infoPanel.querySelector('.room-promotion-section');
-    if (promotionSection) {
-        const promotionCheckbox = promotionSection.querySelector('.promotion-checkbox');
-        const promotionPriceInput = promotionSection.querySelector('.promotion-price-input');
-        const discountInput = promotionSection.querySelector('.discount-price-input');
-        const savePromotionBtn = promotionSection.querySelector('.btn-save-promotion');
-        
-        // Prevent click propagation on promotion elements
-        promotionSection.addEventListener('click', (e) => e.stopPropagation());
-        
-        // Toggle promotion price input visibility
-        promotionCheckbox.addEventListener('change', (e) => {
-            const isChecked = e.target.checked;
-            promotionPriceInput.style.display = isChecked ? 'flex' : 'none';
-            
-            // If turning off promotion, save immediately
-            if (!isChecked) {
-                saveRoomPromotion(roomId, false, null, savePromotionBtn);
-            }
-        });
-        
-        // Save promotion on button click
-        savePromotionBtn.addEventListener('click', (e) => {
+    if (settingsBtn && settingsDropdown) {
+        // Toggle dropdown on settings button click
+        settingsBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const isActive = promotionCheckbox.checked;
-            const discountPrice = parseFloat(discountInput.value);
-            
-            if (isActive && (!discountPrice || discountPrice <= 0)) {
-                alert('Please enter a valid discount price');
-                return;
-            }
-            
-            saveRoomPromotion(roomId, isActive, discountPrice, savePromotionBtn);
+            // Close all other dropdowns first
+            document.querySelectorAll('.room-settings-dropdown.active').forEach(dd => {
+                if (dd !== settingsDropdown) dd.classList.remove('active');
+            });
+            settingsDropdown.classList.toggle('active');
         });
         
-        // Allow Enter key to save promotion
-        discountInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                savePromotionBtn.click();
-            }
-        });
+        // Close button
+        const closeBtn = settingsDropdown.querySelector('.settings-close-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                settingsDropdown.classList.remove('active');
+            });
+        }
+        
+        // Prevent dropdown from closing when clicking inside
+        settingsDropdown.addEventListener('click', (e) => e.stopPropagation());
+        
+        // Setup iCal button handlers inside dropdown
+        const icalSection = settingsDropdown.querySelector('.room-ical-section');
+        if (icalSection) {
+            const icalInput = icalSection.querySelector('.ical-url-input');
+            const saveBtn = icalSection.querySelector('.btn-ical-save');
+            const syncBtn = icalSection.querySelector('.btn-ical-sync');
+            
+            // Prevent click propagation on iCal elements
+            icalInput.addEventListener('click', (e) => e.stopPropagation());
+            saveBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                saveRoomIcalUrl(roomId, icalInput.value.trim(), saveBtn, syncBtn);
+            });
+            syncBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                syncRoomIcalFromCard(roomId, syncBtn);
+            });
+        }
+        
+        // Setup promotion handlers inside dropdown
+        const promotionSection = settingsDropdown.querySelector('.room-promotion-section');
+        if (promotionSection) {
+            const promotionCheckbox = promotionSection.querySelector('.promotion-checkbox');
+            const promotionPriceInput = promotionSection.querySelector('.promotion-price-input');
+            const discountInput = promotionSection.querySelector('.discount-price-input');
+            const savePromotionBtn = promotionSection.querySelector('.btn-save-promotion');
+            
+            // Prevent click propagation on promotion elements
+            promotionSection.addEventListener('click', (e) => e.stopPropagation());
+            
+            // Toggle promotion price input visibility
+            promotionCheckbox.addEventListener('change', (e) => {
+                const isChecked = e.target.checked;
+                promotionPriceInput.style.display = isChecked ? 'flex' : 'none';
+                
+                // If turning off promotion, save immediately
+                if (!isChecked) {
+                    saveRoomPromotion(roomId, false, null, savePromotionBtn);
+                }
+            });
+            
+            // Save promotion on button click
+            savePromotionBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isActive = promotionCheckbox.checked;
+                const discountPrice = parseFloat(discountInput.value);
+                
+                if (isActive && (!discountPrice || discountPrice <= 0)) {
+                    alert('Please enter a valid discount price');
+                    return;
+                }
+                
+                saveRoomPromotion(roomId, isActive, discountPrice, savePromotionBtn);
+            });
+            
+            // Allow Enter key to save promotion
+            discountInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    savePromotionBtn.click();
+                }
+            });
+        }
     }
 
     // Image / upload handling
@@ -1280,6 +1336,11 @@ function createRoomCalendarRow(room, checkinDate, checkoutDate) {
 
     row.appendChild(infoPanel);
     row.appendChild(calendarPanel);
+    
+    // Append settings dropdown to row (for centering on entire calendar row)
+    if (settingsDropdown) {
+        row.appendChild(settingsDropdown);
+    }
 
     return row;
 }
