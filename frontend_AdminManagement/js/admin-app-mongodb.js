@@ -413,6 +413,53 @@ function toggleMobileFilter() {
     }
 }
 
+// Format sync time for display (shows date and time)
+function formatSyncTime(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    // Show relative time for recent syncs
+    if (diffMins < 1) {
+        return 'Just now';
+    } else if (diffMins < 60) {
+        return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+    } else if (diffHours < 24) {
+        return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    } else if (diffDays < 7) {
+        return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    } else {
+        // Show date and time for older syncs
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+}
+
+// Update last sync time display for a specific room
+function updateLastSyncDisplay(roomId) {
+    const dropdown = document.querySelector(`.room-settings-dropdown[data-room-id="${roomId}"]`);
+    if (!dropdown) return;
+    
+    const icalSection = dropdown.querySelector('.room-ical-section');
+    if (!icalSection) return;
+    
+    // Update or create the last sync element
+    let lastSyncElement = icalSection.querySelector('.ical-last-sync');
+    const syncTime = formatSyncTime(new Date().toISOString());
+    
+    if (lastSyncElement) {
+        lastSyncElement.textContent = `Last sync: ${syncTime}`;
+    } else {
+        lastSyncElement = document.createElement('small');
+        lastSyncElement.className = 'ical-last-sync';
+        lastSyncElement.textContent = `Last sync: ${syncTime}`;
+        icalSection.appendChild(lastSyncElement);
+    }
+}
+
 // ===== Room Management System =====
 
 class RoomManager {
@@ -1025,7 +1072,7 @@ function createRoomCalendarRow(room, checkinDate, checkoutDate) {
     
     const roomId = room.room_id || room.id;
     const icalUrl = room.icalUrl || '';
-    const lastSync = room.lastIcalSync ? new Date(room.lastIcalSync).toLocaleDateString() : '';
+    const lastSync = room.lastIcalSync ? formatSyncTime(room.lastIcalSync) : '';
     
     // Check if promotion is active
     const hasPromotion = room.promotion && room.promotion.active;
@@ -4687,6 +4734,9 @@ async function syncRoomIcalFromCard(roomId, syncBtn) {
             // Show brief success
             syncBtn.textContent = '✓';
             
+            // Update the last sync time display immediately
+            updateLastSyncDisplay(roomId);
+            
             if (data.syncedCount > 0) {
                 // Reload rooms and refresh calendar to show new bookings
                 await roomManager.loadRooms();
@@ -4754,12 +4804,17 @@ async function autoSyncAllIcal() {
         const data = await response.json();
         
         if (response.ok && data.success) {
-            // Count total new bookings
+            // Count total new bookings and update sync times
             for (const result of data.results) {
-                if (result.success && result.syncedCount > 0) {
-                    totalSynced += result.syncedCount;
-                    hasNewBookings = true;
-                    console.log(`  ✓ ${result.roomName}: ${result.syncedCount} new booking(s)`);
+                if (result.success) {
+                    // Update last sync display for this room
+                    updateLastSyncDisplay(result.roomId);
+                    
+                    if (result.syncedCount > 0) {
+                        totalSynced += result.syncedCount;
+                        hasNewBookings = true;
+                        console.log(`  ✓ ${result.roomName}: ${result.syncedCount} new booking(s)`);
+                    }
                 }
             }
             
