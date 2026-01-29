@@ -389,10 +389,17 @@ function toggleMobileFilter() {
     if (filterPanel) {
         filterPanel.classList.toggle('mobile-visible');
         
-        // Update button text
+        // Update filter panel display
+        const isVisible = filterPanel.classList.contains('mobile-visible');
+        filterPanel.style.display = isVisible ? 'block' : 'none';
+        
+        // Hide/show toggle button based on panel visibility
         if (toggleBtn) {
-            const isVisible = filterPanel.classList.contains('mobile-visible');
-            toggleBtn.querySelector('span').textContent = isVisible ? 'Hide Filter' : 'Filter';
+            if (isVisible) {
+                toggleBtn.classList.remove('show');
+            } else {
+                toggleBtn.classList.add('show');
+            }
         }
     }
 }
@@ -666,11 +673,8 @@ function switchTab(tabName) {
     // Collapse sidebar after selecting a tab
     collapseSidebar();
     
-    // Show/hide filter panel based on tab
-    const filterPanel = document.getElementById('dashboard-filter-panel');
-    if (filterPanel) {
-        filterPanel.style.display = tabName === 'dashboard' ? 'flex' : 'none';
-    }
+    // Update filter panel visibility based on tab and screen size
+    handleFilterResponsive();
     
     // Update content based on tab
     if (tabName === 'dashboard') {
@@ -691,11 +695,59 @@ async function updateDashboard() {
     // Update month display
     updateMonthDisplay();
     
+    // Show filter panel on dashboard
+    handleFilterResponsive();
+    
     // Render room calendars with filters
     applyDashboardFilters();
 }
 
 // ===== Dashboard Filter Functions =====
+
+// Handle responsive filter panel visibility on window resize
+function handleFilterResponsive() {
+    const filterPanel = document.getElementById('dashboard-filter-panel');
+    const mobileFilterToggle = document.getElementById('mobile-filter-toggle');
+    const dashboardTab = document.getElementById('dashboard');
+    
+    // Only show filter on Dashboard tab
+    const isDashboardActive = dashboardTab && dashboardTab.classList.contains('active');
+    
+    if (!isDashboardActive) {
+        // Not on dashboard - hide everything
+        if (filterPanel) {
+            filterPanel.style.display = 'none';
+            filterPanel.classList.remove('mobile-visible');
+        }
+        if (mobileFilterToggle) {
+            mobileFilterToggle.classList.remove('show');
+        }
+        return;
+    }
+    
+    // On Dashboard tab
+    if (window.innerWidth >= 768) {
+        // Desktop/tablet: show filter panel, hide mobile toggle
+        if (filterPanel) {
+            filterPanel.style.display = 'flex';
+            filterPanel.classList.remove('mobile-visible');
+        }
+        if (mobileFilterToggle) {
+            mobileFilterToggle.classList.remove('show');
+        }
+    } else {
+        // Mobile: hide filter panel by default (unless mobile-visible), show mobile toggle
+        if (filterPanel && !filterPanel.classList.contains('mobile-visible')) {
+            filterPanel.style.display = 'none';
+        }
+        if (mobileFilterToggle) {
+            mobileFilterToggle.classList.add('show');
+        }
+    }
+}
+
+// Add resize listener
+window.addEventListener('resize', handleFilterResponsive);
 
 // Add event listener: when checkin changes, clear checkout and jump to month
 document.addEventListener('DOMContentLoaded', function() {

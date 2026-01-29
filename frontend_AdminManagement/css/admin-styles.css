@@ -3112,9 +3112,9 @@ html, body {
         display: block !important;
     }
 
-    /* Mobile Filter Toggle Button */
+    /* Mobile Filter Toggle Button - only show when dashboard is active */
     .mobile-filter-toggle {
-        display: flex !important;
+        display: none;
         align-items: center;
         gap: 6px;
         background: var(--sage-green);
@@ -3127,6 +3127,11 @@ html, body {
         cursor: pointer;
         margin: 8px 10px;
         box-shadow: 0 2px 8px rgba(61, 90, 64, 0.2);
+    }
+    
+    /* Show mobile toggle only when on dashboard (controlled by JS) */
+    .mobile-filter-toggle.show {
+        display: flex !important;
     }
 
     .mobile-filter-toggle:hover {
