@@ -4003,6 +4003,24 @@ function updateFilteredSummary() {
     balanceEl.className = 'finance-card-value ' + (netBalance >= 0 ? 'positive' : 'negative');
 }
 
+// Format amount input with thousand separators
+function formatAmountInput(input) {
+    // Remove all non-digit characters
+    let value = input.value.replace(/[^\d]/g, '');
+    
+    // Format with commas
+    if (value) {
+        value = parseInt(value, 10).toLocaleString('en-US');
+    }
+    
+    input.value = value;
+}
+
+// Get raw number from formatted amount input
+function getRawAmount(formattedValue) {
+    return parseFloat(formattedValue.replace(/,/g, '')) || 0;
+}
+
 // Show add transaction form
 function showAddTransactionForm() {
     document.getElementById('transaction-form-title').textContent = 'Add New Transaction';
@@ -4036,13 +4054,19 @@ function editTransaction(transactionId) {
     document.getElementById('transaction-form-title').textContent = 'Edit Transaction';
     document.getElementById('edit-transaction-id').value = transactionId;
     document.getElementById('transaction-type').value = transaction.type;
-    document.getElementById('transaction-amount').value = transaction.amount;
+    document.getElementById('transaction-amount').value = formatCurrency(transaction.amount);
     document.getElementById('transaction-date').value = transaction.date.split('T')[0];
     document.getElementById('transaction-category').value = transaction.category || '';
     document.getElementById('transaction-person').value = transaction.personInCharge || '';
     document.getElementById('transaction-description').value = transaction.description;
     
-    document.getElementById('transaction-form-container').style.display = 'block';
+    const formContainer = document.getElementById('transaction-form-container');
+    formContainer.style.display = 'block';
+    
+    // Scroll to the form smoothly
+    setTimeout(() => {
+        formContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
 }
 
 // Save transaction (create or update)
@@ -4051,7 +4075,7 @@ async function saveTransaction(event) {
     
     const transactionId = document.getElementById('edit-transaction-id').value;
     const type = document.getElementById('transaction-type').value;
-    const amount = parseFloat(document.getElementById('transaction-amount').value);
+    const amount = getRawAmount(document.getElementById('transaction-amount').value);
     const date = document.getElementById('transaction-date').value;
     const category = document.getElementById('transaction-category').value;
     const personInCharge = document.getElementById('transaction-person').value.trim();
