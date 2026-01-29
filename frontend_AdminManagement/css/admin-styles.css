@@ -2350,6 +2350,73 @@ html, body {
 .calendar-panel {
     flex: 1;
     overflow: visible;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+}
+
+.calendar-wrapper {
+    flex: 1;
+    overflow-x: auto;
+    overflow-y: visible;
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: var(--sage-green) transparent;
+}
+
+.calendar-wrapper::-webkit-scrollbar {
+    height: 6px;
+}
+
+.calendar-wrapper::-webkit-scrollbar-track {
+    background: rgba(212, 184, 150, 0.2);
+    border-radius: 3px;
+}
+
+.calendar-wrapper::-webkit-scrollbar-thumb {
+    background: var(--sage-green);
+    border-radius: 3px;
+}
+
+.calendar-wrapper::-webkit-scrollbar-thumb:hover {
+    background: var(--dark-green);
+}
+
+.calendar-slide-btn {
+    background: var(--sage-green);
+    color: white;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(61, 90, 64, 0.2);
+    z-index: 10;
+}
+
+.calendar-slide-btn:hover {
+    background: var(--dark-green);
+    transform: scale(1.1);
+}
+
+.calendar-slide-btn:active {
+    transform: scale(0.95);
+}
+
+.calendar-slide-btn.slide-left {
+    margin-right: 4px;
+}
+
+.calendar-slide-btn.slide-right {
+    margin-left: 4px;
 }
 
 .calendar-grid {
@@ -2503,6 +2570,12 @@ html, body {
         gap: 15px;
         text-align: center;
     }
+    
+    .calendar-slide-btn {
+        width: 28px;
+        height: 28px;
+        font-size: 16px;
+    }
 }
 
 @media (max-width: 500px) {
@@ -2520,6 +2593,12 @@ html, body {
     .calendar-grid {
         min-width: 280px;
         gap: 2px;
+    }
+    
+    .calendar-slide-btn {
+        width: 24px;
+        height: 24px;
+        font-size: 14px;
     }
 }
 

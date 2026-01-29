@@ -935,6 +935,17 @@ function changeMonth(direction) {
     applyDashboardFilters();
 }
 
+// Slide calendar horizontally
+function slideCalendar(calendarPanel, scrollAmount) {
+    const wrapper = calendarPanel.querySelector('.calendar-wrapper');
+    if (wrapper) {
+        wrapper.scrollBy({
+            left: scrollAmount,
+            behavior: 'smooth'
+        });
+    }
+}
+
 // Render all room calendars (legacy - now uses applyDashboardFilters)
 function renderRoomCalendars() {
     applyDashboardFilters();
@@ -1185,8 +1196,35 @@ function createRoomCalendarRow(room, checkinDate, checkoutDate) {
     const calendarPanel = document.createElement('div');
     calendarPanel.className = 'calendar-panel';
 
+    // Add slide navigation buttons
+    const slideLeftBtn = document.createElement('button');
+    slideLeftBtn.className = 'calendar-slide-btn slide-left';
+    slideLeftBtn.innerHTML = '&#8249;';
+    slideLeftBtn.title = 'Previous month';
+    slideLeftBtn.onclick = (e) => {
+        e.stopPropagation();
+        changeMonth(-1);
+    };
+
+    const slideRightBtn = document.createElement('button');
+    slideRightBtn.className = 'calendar-slide-btn slide-right';
+    slideRightBtn.innerHTML = '&#8250;';
+    slideRightBtn.title = 'Next month';
+    slideRightBtn.onclick = (e) => {
+        e.stopPropagation();
+        changeMonth(1);
+    };
+
+    // Calendar wrapper for scrolling
+    const calendarWrapper = document.createElement('div');
+    calendarWrapper.className = 'calendar-wrapper';
+
     const calendarGrid = createCalendarGrid(room, checkinDate, checkoutDate);
-    calendarPanel.appendChild(calendarGrid);
+    calendarWrapper.appendChild(calendarGrid);
+
+    calendarPanel.appendChild(slideLeftBtn);
+    calendarPanel.appendChild(calendarWrapper);
+    calendarPanel.appendChild(slideRightBtn);
 
     row.appendChild(infoPanel);
     row.appendChild(calendarPanel);
