@@ -3025,7 +3025,8 @@ html, body {
     bottom: 4px;
     transform: none;
     height: 28px;
-    background: linear-gradient(135deg, #446d47 0%, #406f42 100%);
+    /* Solid color background */
+    background: #4a8a4a;
     border-radius: 14px;
     color: white;
     font-size: 10px;
@@ -3041,50 +3042,64 @@ html, body {
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(45, 90, 48, 0.4);
     transition: all 0.2s ease;
-    left: 2px;
+    left: 6px;
+    right: 6px;
+    /* Add outline border for clear separation between bookings */
+    border: 2px solid white;
+    box-sizing: border-box;
 }
 
 .booking-bar:hover {
-    background: linear-gradient(135deg, #3d7a40 0%, #4d9a50 100%);
+    filter: brightness(1.1);
     box-shadow: 0 4px 12px rgba(45, 90, 48, 0.5);
     transform: scale(1.02);
 }
 
-.booking-bar-start {
-    border-radius: 14px 0 0 14px;
-    left: 2px;
-    right: -2px;
-}
-
-.booking-bar-middle {
-    border-radius: 0;
-    left: -2px;
-    right: -2px;
-}
-
-.booking-bar-end {
-    border-radius: 0 14px 14px 0;
-    left: -2px;
-    right: 2px;
-}
-
+/* Single booking - solid green */
 .booking-bar-single {
     border-radius: 14px;
-    left: 2px;
-    right: 2px;
+    left: 6px;
+    right: 6px;
+    background: #4a8a4a;
+}
+
+/* Start of booking - solid green */
+.booking-bar-start {
+    border-radius: 14px 6px 6px 14px;
+    left: 6px;
+    right: 6px;
+    background: #4a8a4a;
+}
+
+/* Middle of booking - solid green */
+.booking-bar-middle {
+    border-radius: 6px;
+    left: 6px;
+    right: 6px;
+    background: #4a8a4a;
+}
+
+/* End of booking - gradient green to white */
+.booking-bar-end {
+    border-radius: 6px 14px 14px 6px;
+    left: 6px;
+    right: 6px;
+    background: linear-gradient(to right, #4a8a4a 0%, #4a8a4a 40%, #8fbc8f 70%, #e8f5e8 90%, #ffffff 100%);
 }
 
 /* Continuation styles for bookings spanning multiple week rows */
 .booking-bar-continue-start {
-    border-radius: 0;
-    left: -2px;
-    right: -2px;
+    border-radius: 6px;
+    left: 6px;
+    right: 6px;
+    background: #4a8a4a;
 }
 
 .booking-bar-continue-end {
-    border-radius: 0;
-    left: -2px;
-    right: -2px;
+    border-radius: 6px;
+    left: 6px;
+    right: 6px;
+    background: #4a8a4a;
 }
 
 .calendar-day.booked .day-number {
@@ -3097,14 +3112,27 @@ html, body {
     font-weight: 500;
 }
 
-/* Past booking bar styles - grey */
+/* Past booking bar styles - solid grey */
 .calendar-day.past .booking-bar {
-    background: linear-gradient(135deg, #888 0%, #aaa 100%);
     box-shadow: 0 2px 8px rgba(100, 100, 100, 0.3);
+    border-color: #f5f5f5;
+    background: #999;
+}
+
+.calendar-day.past .booking-bar-single,
+.calendar-day.past .booking-bar-start,
+.calendar-day.past .booking-bar-middle,
+.calendar-day.past .booking-bar-continue-start,
+.calendar-day.past .booking-bar-continue-end {
+    background: #999;
+}
+
+.calendar-day.past .booking-bar-end {
+    background: linear-gradient(to right, #999 0%, #999 40%, #bbb 70%, #e8e8e8 90%, #ffffff 100%);
 }
 
 .calendar-day.past .booking-bar:hover {
-    background: linear-gradient(135deg, #999 0%, #bbb 100%);
+    filter: brightness(1.1);
     box-shadow: 0 4px 12px rgba(100, 100, 100, 0.4);
 }
 
@@ -3560,11 +3588,45 @@ html, body {
         font-size: 10px;
     }
 
-    /* Booking bar adjustments */
+    /* Booking bar adjustments for mobile - make bars shorter to avoid overlap */
     .booking-bar {
         font-size: 7px !important;
         padding: 1px 3px !important;
-        height: 12px !important;
+        height: 11px !important;
+        bottom: 2px !important;
+        box-shadow: 0 1px 4px rgba(45, 90, 48, 0.3) !important;
+    }
+
+    /* Shorten booking bars with more margin on mobile */
+    .booking-bar-single {
+        left: 4px !important;
+        right: 6px !important;
+        border-radius: 10px !important;
+    }
+
+    .booking-bar-start {
+        left: 6px !important;
+        right: 6px !important;
+        border-radius: 10px 4px 4px 10px !important;
+    }
+
+    .booking-bar-end {
+        left: 6px !important;
+        right: 25% !important;
+        border-radius: 4px 10px 10px 4px !important;
+    }
+
+    .booking-bar-middle {
+        left: 6px !important;
+        right: 6px !important;
+        border-radius: 4px !important;
+    }
+
+    .booking-bar-continue-start,
+    .booking-bar-continue-end {
+        left: 6px !important;
+        right: 6px !important;
+        border-radius: 4px !important;
     }
 
     .booking-bar-content {
@@ -3661,6 +3723,35 @@ html, body {
 
     .calendar-header {
         font-size: 8px;
+    }
+
+    /* Even smaller booking bars for extra small phones */
+    .booking-bar {
+        height: 10px !important;
+        font-size: 6px !important;
+        padding: 0 2px !important;
+    }
+
+    .booking-bar-single {
+        left: 5px !important;
+        right: 5px !important;
+    }
+
+    .booking-bar-start {
+        left: 5px !important;
+        right: 5px !important;
+    }
+
+    .booking-bar-end {
+        left: 5px !important;
+        right: 5px !important;
+    }
+
+    .booking-bar-middle,
+    .booking-bar-continue-start,
+    .booking-bar-continue-end {
+        left: 5px !important;
+        right: 5px !important;
     }
 
     .rooms-quick-grid {
