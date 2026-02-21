@@ -1728,7 +1728,41 @@ function buildDateToIntervalMap(intervals, year, month) {
     lastOfMonth.setHours(23, 59, 59, 999);
     const startDayOfWeek = firstOfMonth.getDay(); // 0 = Sunday
     
-    intervals.forEach(interval => {
+    // Separate portal and Airbnb bookings
+    const portalBookings = intervals.filter(i => i.source !== 'airbnb_ical');
+    const airbnbBookings = intervals.filter(i => i.source === 'airbnb_ical');
+    
+    // Build a set of all dates covered by portal bookings
+    const portalDates = new Set();
+    portalBookings.forEach(interval => {
+        const checkIn = new Date(interval.checkIn);
+        const checkOut = new Date(interval.checkOut);
+        let current = new Date(checkIn);
+        while (current < checkOut) {
+            portalDates.add(formatDateString(current));
+            current.setDate(current.getDate() + 1);
+        }
+    });
+    
+    // Filter out Airbnb bookings that overlap with portal bookings
+    const filteredAirbnbBookings = airbnbBookings.filter(interval => {
+        const checkIn = new Date(interval.checkIn);
+        const checkOut = new Date(interval.checkOut);
+        let current = new Date(checkIn);
+        while (current < checkOut) {
+            if (portalDates.has(formatDateString(current))) {
+                // This Airbnb booking overlaps with a portal booking - hide it
+                return false;
+            }
+            current.setDate(current.getDate() + 1);
+        }
+        return true; // No overlap, show this Airbnb booking
+    });
+    
+    // Combine: Airbnb first (so they're processed first), then portal bookings
+    const sortedIntervals = [...filteredAirbnbBookings, ...portalBookings];
+    
+    sortedIntervals.forEach(interval => {
         const checkIn = new Date(interval.checkIn);
         const checkOut = new Date(interval.checkOut);
         
@@ -1831,6 +1865,12 @@ function createBookingBar(interval, intervalInfo, room) {
     } else {
         barClass += ' booking-bar-middle';
     }
+    
+    // Add source-based class (Airbnb bookings get lower z-index)
+    if (interval && interval.source === 'airbnb_ical') {
+        barClass += ' booking-bar-airbnb';
+    }
+    
     bar.className = barClass;
     
     // Only show guest name on row-start or single positions
@@ -2932,12 +2972,24 @@ function getBookedIntervalsForRoom(room) {
 }
 
 // Find the booking interval that contains a specific date
+// Prioritizes portal bookings over Airbnb bookings
 function findIntervalForDate(intervals, dateStr) {
+    const targetDate = new Date(dateStr);
+    
+    // First, try to find a portal booking for this date
+    const portalInterval = intervals.find(interval => {
+        if (interval.source === 'airbnb_ical') return false;
+        const checkIn = new Date(interval.checkIn);
+        const checkOut = new Date(interval.checkOut);
+        return targetDate >= checkIn && targetDate < checkOut;
+    });
+    
+    if (portalInterval) return portalInterval;
+    
+    // If no portal booking, find any booking (Airbnb)
     return intervals.find(interval => {
         const checkIn = new Date(interval.checkIn);
         const checkOut = new Date(interval.checkOut);
-        const targetDate = new Date(dateStr);
-        
         return targetDate >= checkIn && targetDate < checkOut;
     });
 }

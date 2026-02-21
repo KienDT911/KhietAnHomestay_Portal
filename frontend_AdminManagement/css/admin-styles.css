@@ -3102,6 +3102,22 @@ html, body {
     background: #4a8a4a;
 }
 
+/* Airbnb iCal synced bookings - lowest z-index so all other bookings appear on top */
+.booking-bar-airbnb {
+    z-index: 1 !important;
+    background: #888;
+    box-shadow: 0 2px 6px rgba(100, 100, 100, 0.3);
+}
+
+.booking-bar-airbnb.booking-bar-end {
+    background: linear-gradient(to right, #888 0%, #888 40%, #aaa 70%, #ddd 90%, #ffffff 100%);
+}
+
+.booking-bar-airbnb:hover {
+    filter: brightness(1.1);
+    box-shadow: 0 3px 10px rgba(100, 100, 100, 0.4);
+}
+
 .calendar-day.booked .day-number {
     position: relative;
     top: 0;
@@ -3627,6 +3643,12 @@ html, body {
         left: 6px !important;
         right: 6px !important;
         border-radius: 4px !important;
+    }
+
+    /* Airbnb booking bars on mobile - lower z-index */
+    .booking-bar-airbnb {
+        z-index: 5 !important;
+        box-shadow: 0 1px 3px rgba(100, 100, 100, 0.3) !important;
     }
 
     .booking-bar-content {
