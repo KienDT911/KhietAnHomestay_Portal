@@ -1871,6 +1871,20 @@ function createBookingBar(interval, intervalInfo, room) {
         barClass += ' booking-bar-airbnb';
     }
     
+    // Check if this booking interval contains today - if so, keep it green
+    // Use intervalInfo.interval as fallback if interval is not provided
+    const bookingInterval = interval || (intervalInfo && intervalInfo.interval);
+    if (bookingInterval && bookingInterval.checkIn && bookingInterval.checkOut) {
+        const today = new Date();
+        const todayStr = formatDateString(today);
+        const checkInStr = bookingInterval.checkIn.substring(0, 10); // Get YYYY-MM-DD part
+        const checkOutStr = bookingInterval.checkOut.substring(0, 10);
+        // Compare as strings to avoid timezone issues
+        if (todayStr >= checkInStr && todayStr < checkOutStr) {
+            barClass += ' booking-bar-current';
+        }
+    }
+    
     bar.className = barClass;
     
     // Only show guest name on row-start or single positions

@@ -3152,6 +3152,31 @@ html, body {
     box-shadow: 0 4px 12px rgba(100, 100, 100, 0.4);
 }
 
+/* Booking bars for intervals containing today - override past gray styling */
+/* Use !important to ensure current bookings stay green regardless of other rules */
+.booking-bar.booking-bar-current {
+    background: #4a8a4a !important;
+    box-shadow: 0 2px 8px rgba(45, 90, 48, 0.4) !important;
+    border-color: white !important;
+}
+
+.booking-bar.booking-bar-current.booking-bar-single,
+.booking-bar.booking-bar-current.booking-bar-start,
+.booking-bar.booking-bar-current.booking-bar-middle,
+.booking-bar.booking-bar-current.booking-bar-continue-start,
+.booking-bar.booking-bar-current.booking-bar-continue-end {
+    background: #4a8a4a !important;
+}
+
+.booking-bar.booking-bar-current.booking-bar-end {
+    background: linear-gradient(to right, #4a8a4a 0%, #4a8a4a 40%, #8fbc8f 70%, #e8f5e8 90%, #ffffff 100%) !important;
+}
+
+.booking-bar.booking-bar-current:hover {
+    filter: brightness(1.1);
+    box-shadow: 0 4px 12px rgba(45, 90, 48, 0.5) !important;
+}
+
 .calendar-day.past.booked .day-number {
     color: rgba(100, 100, 100, 0.6);
 }
