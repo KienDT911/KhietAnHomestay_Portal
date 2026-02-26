@@ -1,5 +1,7 @@
+// VERSION 2.0 - Past date fix applied
 // Set min date for check-in input and validate on change
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('=== ADMIN APP LOADED - VERSION 2.0 WITH PAST DATE FIX ===');
     const checkinInput = document.getElementById('dashboard-filter-checkin');
     if (checkinInput) {
         const today = new Date();
@@ -1456,16 +1458,24 @@ function createCalendarGrid(room, checkinDate, checkoutDate) {
             dayCell.classList.add('today');
         }
 
-        // Check if past (before today)
-        if (date < new Date(today.getFullYear(), today.getMonth(), today.getDate())) {
-            dayCell.classList.add('past');
-        }
-
         // Check if booked
         if (bookedDates.has(dateStr)) {
             dayCell.classList.add('booked');
             const interval = findIntervalForDate(bookedIntervals, dateStr);
             const intervalInfo = dateToIntervalInfo.get(dateStr);
+
+            // For booked dates: mark as past only if checkout date <= today
+            // Use intervalInfo.interval as it's more reliably computed
+            const bookingInterval = intervalInfo?.interval || interval;
+            if (bookingInterval && bookingInterval.checkOut) {
+                const checkoutStr = bookingInterval.checkOut.substring(0, 10); // Get YYYY-MM-DD part
+                if (checkoutStr <= todayStr) {
+                    dayCell.classList.add('past');
+                }
+            } else if (dateStr < todayStr) {
+                // Fallback: if we can't find the interval, use the date itself
+                dayCell.classList.add('past');
+            }
 
             // Add day number as small text
             const dayNumber = document.createElement('span');
@@ -1482,6 +1492,11 @@ function createCalendarGrid(room, checkinDate, checkoutDate) {
             dayCell.onclick = (e) => handleBookedDateClick(room, interval, e);
             dayCell.style.cursor = 'pointer';
         } else {
+            // For non-booked dates: mark as past if date itself is before today
+            if (dateStr < todayStr) {
+                dayCell.classList.add('past');
+            }
+            
             dayCell.textContent = day;
             if (!dayCell.classList.contains('past')) {
                 dayCell.classList.add('available');
