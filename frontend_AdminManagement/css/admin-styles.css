@@ -3118,6 +3118,19 @@ html, body {
     box-shadow: 0 3px 10px rgba(100, 100, 100, 0.4);
 }
 
+/* Override Airbnb gray color for future bookings (checkout > today) */
+/* These bookings should be green because they haven't completed yet */
+.booking-bar-airbnb.booking-bar-future,
+.booking-bar-airbnb.booking-bar-current {
+    background: #4a8a4a !important;
+    box-shadow: 0 2px 8px rgba(45, 90, 48, 0.4) !important;
+}
+
+.booking-bar-airbnb.booking-bar-future.booking-bar-end,
+.booking-bar-airbnb.booking-bar-current.booking-bar-end {
+    background: linear-gradient(to right, #4a8a4a 0%, #4a8a4a 40%, #8fbc8f 70%, #e8f5e8 90%, #ffffff 100%) !important;
+}
+
 .calendar-day.booked .day-number {
     position: relative;
     top: 0;

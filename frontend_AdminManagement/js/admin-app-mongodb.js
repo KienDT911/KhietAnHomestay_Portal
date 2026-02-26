@@ -1,7 +1,5 @@
-// VERSION 2.0 - Past date fix applied
 // Set min date for check-in input and validate on change
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('=== ADMIN APP LOADED - VERSION 2.0 WITH PAST DATE FIX ===');
     const checkinInput = document.getElementById('dashboard-filter-checkin');
     if (checkinInput) {
         const today = new Date();
@@ -1896,8 +1894,13 @@ function createBookingBar(interval, intervalInfo, room) {
         const checkOutStr = bookingInterval.checkOut.substring(0, 10);
         // Compare as strings to avoid timezone issues
         if (todayStr >= checkInStr && todayStr < checkOutStr) {
+            // Today is within the booking period
             barClass += ' booking-bar-current';
+        } else if (checkOutStr > todayStr) {
+            // Checkout is in the future - booking is still active/upcoming
+            barClass += ' booking-bar-future';
         }
+        // If checkout <= today, booking is past (no extra class needed, will be styled gray)
     }
     
     bar.className = barClass;
